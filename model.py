@@ -129,11 +129,13 @@ def gram_matrix(features):
     return G.div(c * h * w)
 
 # Loss functions
-def style_loss(input_features, style_targets):
+def style_loss(input_features, target_grams):
     total_loss = 0
-    for input_feat, target in zip(input_features, style_targets):
+    for input_feat, target_gram in zip(input_features, target_grams):
         input_gram = gram_matrix(input_feat)
-        total_loss += F.mse_loss(input_gram.squeeze(0), target['gram'])
+        if target_gram.size(0) != input_gram.size(0):
+            target_gram = target_gram.expand_as(input_gram)
+        total_loss += F.mse_loss(input_gram, target_gram)
     return total_loss * STYLE_WEIGHT
 
 def content_loss(input_features, target_features):
