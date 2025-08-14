@@ -38,14 +38,14 @@ def load_style_image(style_path, size=256):
 def get_style_targets(vgg, style_img):
     with torch.no_grad():
         style_features = vgg(style_img)
-        style_targets = []
-        weights = [1.0, 1.0, 1.0, 1.0]  
-        
-        for feat, w in zip(style_features, weights):
+        targets = []
+        for feat in style_features:
             gram = gram_matrix(feat)
-            gram = gram * w / (feat.shape[1] * feat.shape[2] * feat.shape[3])
-            style_targets.append(gram)  
-    return style_targets
+            targets.append({
+                'gram': gram.squeeze(0),  
+                'size': feat.shape[1]     
+            })
+        return targets
 
 
 class COCODataset(torch.utils.data.Dataset):
@@ -130,17 +130,14 @@ def train_style_transfer():
                 
             content_batch = content_batch.to(device)
             
-            # Forward pass through style network
             stylized_batch = style_net(content_batch)
             
             # Extract features for losses
             content_features = vgg(content_batch)
             stylized_features = vgg(stylized_batch)
             
-            # Compute content loss (relu2_2 only)
             c_loss = content_loss(stylized_features[1], content_features[1])
             
-            # Compute style losses (all layers)
             s_loss = style_loss(stylized_features, style_targets)
             
             # Compute total variation loss
@@ -167,11 +164,9 @@ def train_style_transfer():
             total_iterations += 1
 
             if total_iterations % 1000 == 0:
-                with torch.no_grad():
-                    stylized = style_net(content_batch[:1])
-                    style_feats = vgg(stylized)
-                    for i, feat in enumerate(style_feats):
-                        print(f"Layer {i} Gram range:", gram_matrix(feat).min(), gram_matrix(feat).max())
+                print("Gram matrix sizes:")
+                for i, (feat, target) in enumerate(zip(stylized_features, style_targets)):
+                    print(f"Layer {i}: Input {gram_matrix(feat).shape}, Target {target['gram'].shape}")
             
             # Print progress
             if total_iterations % 50 == 0:

@@ -121,21 +121,19 @@ class VGG16(nn.Module):
         return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3]
 
 def gram_matrix(features):
-    if features.dim() == 3:  
-        features = features.unsqueeze(0)  
+    if features.dim() == 3:
+        features = features.unsqueeze(0)
     b, c, h, w = features.size()
-    features = features.view(b * c, h * w)
-    G = torch.mm(features, features.t())
-    return G.div(b * c * h * w)
+    features = features.view(b, c, h * w)
+    G = torch.bmm(features, features.transpose(1, 2))  
+    return G.div(c * h * w)
 
 # Loss functions
-def style_loss(input_features, target_grams):
+def style_loss(input_features, style_targets):
     total_loss = 0
-    for input_feat, target_gram in zip(input_features, target_grams):
+    for input_feat, target in zip(input_features, style_targets):
         input_gram = gram_matrix(input_feat)
-        if target_gram.size(0) != input_gram.size(0):
-            target_gram = target_gram.expand_as(input_gram)
-        total_loss += F.mse_loss(input_gram, target_gram)
+        total_loss += F.mse_loss(input_gram.squeeze(0), target['gram'])
     return total_loss * STYLE_WEIGHT
 
 def content_loss(input_features, target_features):
