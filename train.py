@@ -16,9 +16,9 @@ from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
-STYLE_WEIGHT = 8e6       
-CONTENT_WEIGHT = 3       
-TV_WEIGHT = 5e-6             
+STYLE_WEIGHT = 1e7       
+CONTENT_WEIGHT = 1       
+TV_WEIGHT = 1e-6           
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -36,13 +36,15 @@ def load_style_image(style_path, size=256):
     return style_img.to(device)
 
 def get_style_targets(vgg, style_img):
-    """Weight deeper layers more heavily"""
     with torch.no_grad():
         style_features = vgg(style_img)
-        weights = [0.1, 0.2, 0.4, 0.3]  
         style_targets = []
+        weights = [0.5, 1.0, 1.5, 2.0]  
+        
         for feat, w in zip(style_features, weights):
-            gram = gram_matrix(feat) * w  
+            gram = gram_matrix(feat)
+            gram = gram * (w * 10)  
+            gram = torch.sigmoid(gram) * 2 - 1  
             style_targets.append(gram.squeeze(0))
     return style_targets
 
@@ -102,7 +104,7 @@ def train_style_transfer():
     style_targets = get_style_targets(vgg, style_img)
     
     # Optimizer
-    optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.999), eps=1e-8)
     scheduler = optim.lr_scheduler.OneCycleLR(
     optimizer, 
     max_lr=1e-3, 

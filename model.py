@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+STYLE_WEIGHT = 1e7       
+CONTENT_WEIGHT = 1  
+
 class ResidualBlock(nn.Module):
     """Residual block with instance normalization"""
     def __init__(self, channels):
@@ -128,17 +131,16 @@ def gram_matrix(features):
     return G.div(c * h * w)
 
 # Loss functions
-def content_loss(input_features, target_features):
-    """Content loss using relu2_2 features"""
-    return F.mse_loss(input_features[2], target_features[2])
-
 def style_loss(input_features, target_gram):
-    """Style loss using Gram matrices"""
+    """Enhanced style loss with feature normalization"""
     input_gram = gram_matrix(input_features)
-    # Handle batch dimension properly
-    if target_gram.dim() == 2:  # Single target gram matrix
-        target_gram = target_gram.unsqueeze(0).expand(input_gram.size(0), -1, -1)
-    return F.mse_loss(input_gram, target_gram)
+    # Normalize by feature dimension
+    norm_factor = input_features.shape[1] * input_features.shape[2] * input_features.shape[3]
+    return F.mse_loss(input_gram/norm_factor, target_gram/norm_factor) * STYLE_WEIGHT
+
+def content_loss(input_features, target_features):
+    """Stabilized content loss"""
+    return F.l1_loss(input_features[2], target_features[2]) * CONTENT_WEIGHT
 
 def total_variation_loss(img):
     """Total variation regularization"""
