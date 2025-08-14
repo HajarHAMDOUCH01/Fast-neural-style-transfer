@@ -16,9 +16,9 @@ from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
-STYLE_WEIGHT = 5e6       
-CONTENT_WEIGHT = 5       
-TV_WEIGHT = 1e-5         
+STYLE_WEIGHT = 8e6       
+CONTENT_WEIGHT = 3       
+TV_WEIGHT = 5e-6             
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -155,7 +155,7 @@ def train_style_transfer():
             # Backward pass
             optimizer.zero_grad()
             total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1.0) 
+            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=0.5)  # Tighter clipping
             optimizer.step()
             scheduler.step()
             
@@ -166,6 +166,13 @@ def train_style_transfer():
             epoch_tv_loss += tv_loss.item()
             
             total_iterations += 1
+
+            if total_iterations % 1000 == 0:
+                with torch.no_grad():
+                    stylized = style_net(content_batch[:1])
+                    style_feats = vgg(stylized)
+                    for i, feat in enumerate(style_feats):
+                        print(f"Layer {i} Gram range:", gram_matrix(feat).min(), gram_matrix(feat).max())
             
             # Print progress
             if total_iterations % 50 == 0:

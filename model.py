@@ -48,7 +48,7 @@ class StyleTransferNet(nn.Module):
         
         # Final output layer
         self.deconv3 = nn.Conv2d(32, 3, kernel_size=9, stride=1, padding=4)
-        
+      
     def forward(self, x):
         # Encoder
         x = F.relu(self.in1(self.conv1(x)))
