@@ -4,7 +4,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchvision.datasets import CocoDetection
-from torch.optim.lr_scheduler import StepLR
 from PIL import Image
 import os
 import time
@@ -17,8 +16,8 @@ from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
-STYLE_WEIGHT = 5e6 
-CONTENT_WEIGHT = 1.0
+STYLE_WEIGHT = 1e6  
+CONTENT_WEIGHT = 10
 TV_WEIGHT = 1e-4
 
 # Device configuration
@@ -103,7 +102,12 @@ def train_style_transfer():
     
     # Optimizer
     optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE)
-    scheduler = StepLR(optimizer, step_size=10000, gamma=0.1)
+    scheduler = optim.lr_scheduler.OneCycleLR(
+    optimizer, 
+    max_lr=1e-3, 
+    total_steps=40000,
+    pct_start=0.3  # 30% of iterations for warmup
+    )
     
     # Training loop
     print("Starting training...")
@@ -150,6 +154,7 @@ def train_style_transfer():
             # Backward pass
             optimizer.zero_grad()
             total_loss.backward()
+            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1.0) 
             optimizer.step()
             scheduler.step()
             

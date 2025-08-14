@@ -130,7 +130,7 @@ def gram_matrix(features):
 # Loss functions
 def content_loss(input_features, target_features):
     """Content loss using relu2_2 features"""
-    return F.mse_loss(input_features, target_features)
+    return F.mse_loss(input_features[2], target_features[2])
 
 def style_loss(input_features, target_gram):
     """Style loss using Gram matrices"""
