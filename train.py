@@ -16,9 +16,9 @@ from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
-STYLE_WEIGHT = 1e6  
-CONTENT_WEIGHT = 10
-TV_WEIGHT = 1e-4
+STYLE_WEIGHT = 5e6       
+CONTENT_WEIGHT = 5       
+TV_WEIGHT = 1e-5         
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -36,15 +36,16 @@ def load_style_image(style_path, size=256):
     return style_img.to(device)
 
 def get_style_targets(vgg, style_img):
-    """Precompute style target Gram matrices"""
+    """Weight deeper layers more heavily"""
     with torch.no_grad():
         style_features = vgg(style_img)
+        weights = [0.1, 0.2, 0.4, 0.3]  
         style_targets = []
-        for feat in style_features:
-            gram = gram_matrix(feat)
-            # Remove batch dimension since style image is single image
+        for feat, w in zip(style_features, weights):
+            gram = gram_matrix(feat) * w  
             style_targets.append(gram.squeeze(0))
     return style_targets
+
 
 class COCODataset(torch.utils.data.Dataset):
     """Custom COCO dataset for content images"""
