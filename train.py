@@ -16,7 +16,7 @@ from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss
 # Hyperparameters from Johnson et al. paper
 BATCH_SIZE = 1
 LEARNING_RATE = 1e-3
-NUM_EPOCHS = 2  # 2 passes over COCO dataset
+NUM_EPOCHS = 2  
 STYLE_WEIGHT = 1e6
 CONTENT_WEIGHT = 1.0
 TV_WEIGHT = 1e-4
@@ -81,8 +81,7 @@ def train_style_transfer():
     
     # Data transforms following Johnson et al.
     transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.RandomCrop(256),
+        transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
         transforms.ToTensor()
