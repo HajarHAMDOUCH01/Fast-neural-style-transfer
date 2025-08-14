@@ -4,6 +4,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchvision.datasets import CocoDetection
+from torch.optim.lr_scheduler import StepLR
 from PIL import Image
 import os
 import time
@@ -13,11 +14,10 @@ import sys
 sys.path.append('/content/real-time-neural-style-transfer')
 from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
 
-# Hyperparameters from Johnson et al. paper
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
-STYLE_WEIGHT = 1e6
+STYLE_WEIGHT = 5e6 
 CONTENT_WEIGHT = 1.0
 TV_WEIGHT = 1e-4
 
@@ -103,6 +103,7 @@ def train_style_transfer():
     
     # Optimizer
     optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE)
+    scheduler = StepLR(optimizer, step_size=10000, gamma=0.1)
     
     # Training loop
     print("Starting training...")
@@ -150,6 +151,7 @@ def train_style_transfer():
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
+            scheduler.step()
             
             # Accumulate losses
             epoch_loss += total_loss.item()
@@ -192,6 +194,8 @@ def train_style_transfer():
               f"Content: {avg_content:.4f} "
               f"Style: {avg_style:.6f} "
               f"TV: {avg_tv:.6f}")
+        
+        scheduler.step()
         
         if total_iterations >= target_iterations:
             break
