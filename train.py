@@ -44,7 +44,7 @@ def get_style_targets(vgg, style_img):
         for feat, w in zip(style_features, weights):
             gram = gram_matrix(feat)
             gram = gram * w / (feat.shape[1] * feat.shape[2] * feat.shape[3])
-            style_targets.append(gram.squeeze(0))
+            style_targets.append(gram)  
     return style_targets
 
 
@@ -141,9 +141,7 @@ def train_style_transfer():
             c_loss = content_loss(stylized_features[1], content_features[1])
             
             # Compute style losses (all layers)
-            s_loss = 0.0
-            for stylized_feat, target_gram in zip(stylized_features, style_targets):
-                s_loss += style_loss(stylized_feat, target_gram)
+            s_loss = style_loss(stylized_features, style_targets)
             
             # Compute total variation loss
             tv_loss = total_variation_loss(stylized_batch)
