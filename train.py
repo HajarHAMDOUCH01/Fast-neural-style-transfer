@@ -14,7 +14,7 @@ sys.path.append('/content/real-time-neural-style-transfer')
 from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
 
 # Hyperparameters from Johnson et al. paper
-BATCH_SIZE = 1
+BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
 STYLE_WEIGHT = 1e6
@@ -167,8 +167,7 @@ def train_style_transfer():
                       f"Style: {s_loss.item():.6f} "
                       f"TV: {tv_loss.item():.6f}")
             
-            # Save checkpoint every 1000 iterations
-            if total_iterations % 1000 == 0:
+            if total_iterations == 40000:
                 checkpoint = {
                     'iteration': total_iterations,
                     'model_state_dict': style_net.state_dict(),
