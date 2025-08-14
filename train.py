@@ -7,9 +7,9 @@ from PIL import Image
 import os
 import numpy as np
 
-import sys 
-src = "/content/real-time-style-transfer"   
-from src.model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
+import sys
+sys.path.append('/content/real-time-neural-style-transfer')
+from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
 
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
