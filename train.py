@@ -39,12 +39,11 @@ def get_style_targets(vgg, style_img):
     with torch.no_grad():
         style_features = vgg(style_img)
         style_targets = []
-        weights = [0.5, 1.0, 1.5, 2.0]  
+        weights = [1.0, 1.0, 1.0, 1.0]  
         
         for feat, w in zip(style_features, weights):
             gram = gram_matrix(feat)
-            gram = gram * (w * 10)  
-            gram = torch.sigmoid(gram) * 2 - 1  
+            gram = gram * w / (feat.shape[1] * feat.shape[2] * feat.shape[3])
             style_targets.append(gram.squeeze(0))
     return style_targets
 

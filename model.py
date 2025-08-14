@@ -131,12 +131,16 @@ def gram_matrix(features):
     return G.div(c * h * w)
 
 # Loss functions
-def style_loss(input_features, target_gram):
-    """Enhanced style loss with feature normalization"""
-    input_gram = gram_matrix(input_features)
-    # Normalize by feature dimension
-    norm_factor = input_features.shape[1] * input_features.shape[2] * input_features.shape[3]
-    return F.mse_loss(input_gram/norm_factor, target_gram/norm_factor) * STYLE_WEIGHT
+def style_loss(input_features, target_grams):
+    total_loss = 0
+    for input_feat, target_gram in zip(input_features, target_grams):
+        input_gram = gram_matrix(input_feat)
+        # Expand target_gram to match batch dimension
+        target = target_gram.unsqueeze(0).expand_as(input_gram)
+        # Normalize by feature dimensions
+        norm_factor = input_feat.shape[1] * input_feat.shape[2] * input_feat.shape[3]
+        total_loss += F.mse_loss(input_gram/norm_factor, target/norm_factor)
+    return total_loss * STYLE_WEIGHT
 
 def content_loss(input_features, target_features):
     """Stabilized content loss"""
