@@ -9,6 +9,8 @@ import os
 import time
 import numpy as np
 
+import sys
+sys.path.append('/content/real-time-neural-style-transfer')
 from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
 
 # Hyperparameters from Johnson et al. paper
