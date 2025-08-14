@@ -9,18 +9,15 @@ import os
 import time
 import numpy as np
 
-import sys
-sys.path.append('/content/real-time-neural-style-transfer')
-from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
+from model import gram_matrix, content_loss, style_loss, VGG16, total_variation_loss, StyleTransferNet
 
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
-STYLE_WEIGHT = 1e7       
+STYLE_WEIGHT = 1e5       # Keep this consistent
 CONTENT_WEIGHT = 1       
 TV_WEIGHT = 1e-6           
 
-# Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
@@ -36,18 +33,16 @@ def load_style_image(style_path, size=256):
     return style_img.to(device)
 
 def get_style_targets(vgg, style_img):
+    """Fixed style target computation"""
     with torch.no_grad():
         style_features = vgg(style_img)
         style_targets = []
-        weights = [0.5, 1.0, 1.5, 2.0]  
         
-        for feat, w in zip(style_features, weights):
+        for feat in style_features:
             gram = gram_matrix(feat)
-            gram = gram * (w * 10)  
-            gram = torch.sigmoid(gram) * 2 - 1  
-            style_targets.append(gram.squeeze(0))
+            # Store as single gram matrix (will be expanded during loss computation)
+            style_targets.append(gram.squeeze(0))  # Remove batch dimension for storage
     return style_targets
-
 
 class COCODataset(torch.utils.data.Dataset):
     """Custom COCO dataset for content images"""
@@ -79,9 +74,9 @@ class COCODataset(torch.utils.data.Dataset):
             return self.__getitem__(np.random.randint(0, len(self.images)))
 
 def train_style_transfer():
-    """Main training function"""
+    """Final fixed training function"""
     
-    # Data transforms following Johnson et al.
+    # Data transforms
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(p=0.5),
@@ -89,10 +84,10 @@ def train_style_transfer():
         transforms.ToTensor()
     ])
     
-    # Load dataset - Replace with your COCO path
+    # Load dataset
     dataset = COCODataset(root='/root/.cache/kagglehub/datasets/awsaf49/coco-2017-dataset/versions/2/coco2017/train2017', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
-                           num_workers=2, pin_memory=True)  # Reduced workers for CPU
+                           num_workers=2, pin_memory=True)
     
     # Initialize networks
     style_net = StyleTransferNet().to(device)
@@ -103,13 +98,19 @@ def train_style_transfer():
     style_img = load_style_image('/content/picasso.jpg')
     style_targets = get_style_targets(vgg, style_img)
     
-    # Optimizer
-    optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE, betas=(0.9, 0.999), eps=1e-8)
+    # Print style target shapes for debugging
+    print("Style target shapes:")
+    for i, target in enumerate(style_targets):
+        print(f"Layer {i}: {target.shape}")
+    
+    # Optimizer with better settings
+    optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE, 
+                          betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.OneCycleLR(
-    optimizer, 
-    max_lr=1e-3, 
-    total_steps=40000,
-    pct_start=0.3  # 30% of iterations for warmup
+        optimizer, 
+        max_lr=1e-3, 
+        total_steps=40000,
+        pct_start=0.3
     )
     
     # Training loop
@@ -117,7 +118,7 @@ def train_style_transfer():
     style_net.train()
     
     total_iterations = 0
-    target_iterations = 40000  # Approximately 2 epochs on 80k images with batch_size=4
+    target_iterations = 40000
     
     for epoch in range(NUM_EPOCHS):
         epoch_loss = 0.0
@@ -131,25 +132,19 @@ def train_style_transfer():
                 
             content_batch = content_batch.to(device)
             
-            # Forward pass through style network
+            # Forward pass
             stylized_batch = style_net(content_batch)
             
-            # Extract features for losses
+            # Extract features
             content_features = vgg(content_batch)
             stylized_features = vgg(stylized_batch)
             
-            # Compute content loss (relu2_2 only)
-            c_loss = content_loss(stylized_features[1], content_features[1])
-            
-            # Compute style losses (all layers)
-            s_loss = 0.0
-            for stylized_feat, target_gram in zip(stylized_features, style_targets):
-                s_loss += style_loss(stylized_feat, target_gram)
-            
-            # Compute total variation loss
+            # Compute losses with proper weighting
+            c_loss = content_loss(stylized_features, content_features)
+            s_loss = style_loss(stylized_features, style_targets)
             tv_loss = total_variation_loss(stylized_batch)
             
-            # Total loss
+            # Total loss with proper weighting
             total_loss = (CONTENT_WEIGHT * c_loss + 
                          STYLE_WEIGHT * s_loss + 
                          TV_WEIGHT * tv_loss)
@@ -157,7 +152,7 @@ def train_style_transfer():
             # Backward pass
             optimizer.zero_grad()
             total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=0.5)  # Tighter clipping
+            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1.0)
             optimizer.step()
             scheduler.step()
             
@@ -168,13 +163,6 @@ def train_style_transfer():
             epoch_tv_loss += tv_loss.item()
             
             total_iterations += 1
-
-            if total_iterations % 1000 == 0:
-                with torch.no_grad():
-                    stylized = style_net(content_batch[:1])
-                    style_feats = vgg(stylized)
-                    for i, feat in enumerate(style_feats):
-                        print(f"Layer {i} Gram range:", gram_matrix(feat).min(), gram_matrix(feat).max())
             
             # Print progress
             if total_iterations % 50 == 0:
@@ -184,40 +172,24 @@ def train_style_transfer():
                       f"Style: {s_loss.item():.6f} "
                       f"TV: {tv_loss.item():.6f}")
             
-            if total_iterations == 40000:
-                checkpoint = {
-                    'iteration': total_iterations,
-                    'model_state_dict': style_net.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': total_loss.item(),
-                }
-                torch.save(checkpoint, f'checkpoint_iter_{total_iterations}.pth')
-                
-                # Save sample stylized image
+            # Debug gram matrix ranges occasionally
+            if total_iterations % 1000 == 0:
                 with torch.no_grad():
-                    sample_stylized = style_net(content_batch[0:1])
-                    save_image = transforms.ToPILImage()(sample_stylized[0].cpu())
-                    save_image.save(f'sample_iter_{total_iterations}.jpg')
-        
-        avg_loss = epoch_loss / len(dataloader)
-        avg_content = epoch_content_loss / len(dataloader)
-        avg_style = epoch_style_loss / len(dataloader)
-        avg_tv = epoch_tv_loss / len(dataloader)
-        
-        print(f"Epoch [{epoch+1}/{NUM_EPOCHS}] "
-              f"Avg Loss: {avg_loss:.4f} "
-              f"Content: {avg_content:.4f} "
-              f"Style: {avg_style:.6f} "
-              f"TV: {avg_tv:.6f}")
-        
-        scheduler.step()
+                    content_gram = gram_matrix(content_features[0])
+                    stylized_gram = gram_matrix(stylized_features[0])
+                    print(f"Content gram range: {content_gram.min():.6f} - {content_gram.max():.6f}")
+                    print(f"Stylized gram range: {stylized_gram.min():.6f} - {stylized_gram.max():.6f}")
+                    print(f"Style target range: {style_targets[0].min():.6f} - {style_targets[0].max():.6f}")
+            
+            if total_iterations >= target_iterations:
+                break
         
         if total_iterations >= target_iterations:
             break
     
     # Save final model
     torch.save(style_net.state_dict(), 'style_transfer_final.pth')
-    print("Training completed! Model saved as 'style_transfer_final.pth'")
+    print("Training completed!")
 
 def test_inference(model_path, content_path, output_path):
     """Test the trained model on a single image"""
@@ -245,7 +217,6 @@ def test_inference(model_path, content_path, output_path):
     print(f"Stylized image saved to {output_path}")
 
 if __name__ == '__main__':
-    # Train the model
     train_style_transfer()
-   
+
     # test_inference('style_transfer_final.pth', 'test_content.jpg', 'stylized_output.jpg')
