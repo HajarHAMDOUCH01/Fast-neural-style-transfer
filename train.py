@@ -5,17 +5,21 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchvision.datasets import CocoDetection
 from PIL import Image
+import torch.nn.functional as F
 import os
 import time
 import numpy as np
 
-from model import gram_matrix, content_loss, style_loss, VGG16, total_variation_loss, StyleTransferNet
+import sys
+sys.path.append('/content/real-time-neural-style-transfer')
+from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
+
 
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 2  
-STYLE_WEIGHT = 1e5       # Keep this consistent
-CONTENT_WEIGHT = 1       
+STYLE_WEIGHT = 1e5
+CONTENT_WEIGHT = 0.1 
 TV_WEIGHT = 1e-6           
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -40,7 +44,6 @@ def get_style_targets(vgg, style_img):
         
         for feat in style_features:
             gram = gram_matrix(feat)
-            # Store as single gram matrix (will be expanded during loss computation)
             style_targets.append(gram.squeeze(0))  # Remove batch dimension for storage
     return style_targets
 
@@ -85,7 +88,7 @@ def train_style_transfer():
     ])
     
     # Load dataset
-    dataset = COCODataset(root='/root/.cache/kagglehub/datasets/awsaf49/coco-2017-dataset/versions/2/coco2017/train2017', transform=transform)
+    dataset = COCODataset(root='/kaggle/input/imagenet/imagenet/train', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
                            num_workers=2, pin_memory=True)
     
@@ -174,12 +177,14 @@ def train_style_transfer():
             
             # Debug gram matrix ranges occasionally
             if total_iterations % 1000 == 0:
+                print(f"\n=== Debug at iteration {total_iterations} ===")
                 with torch.no_grad():
-                    content_gram = gram_matrix(content_features[0])
-                    stylized_gram = gram_matrix(stylized_features[0])
-                    print(f"Content gram range: {content_gram.min():.6f} - {content_gram.max():.6f}")
-                    print(f"Stylized gram range: {stylized_gram.min():.6f} - {stylized_gram.max():.6f}")
-                    print(f"Style target range: {style_targets[0].min():.6f} - {style_targets[0].max():.6f}")
+                    for i, (s_feat, target) in enumerate(zip(stylized_features, style_targets)):
+                        s_gram = gram_matrix(s_feat)
+                        print(f"Layer {i}: stylized_gram range: {s_gram.min():.8f} - {s_gram.max():.8f}")
+                        print(f"Layer {i}: target_gram range: {target.min():.8f} - {target.max():.8f}")
+                        mse = F.mse_loss(s_gram, target.unsqueeze(0).expand_as(s_gram))
+                        print(f"Layer {i}: MSE = {mse:.8f}")
             
             if total_iterations >= target_iterations:
                 break
