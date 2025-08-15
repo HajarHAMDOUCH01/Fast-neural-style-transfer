@@ -15,12 +15,14 @@ sys.path.append('/content/real-time-neural-style-transfer')
 from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
 
 
-BATCH_SIZE = 4
-LEARNING_RATE = 1e-3
-NUM_EPOCHS = 2  
-STYLE_WEIGHT = 1e5
-CONTENT_WEIGHT = 0.1 
-TV_WEIGHT = 1e-6           
+BATCH_SIZE      = 4
+LEARNING_RATE   = 1e-3
+NUM_EPOCHS      = 2
+
+CONTENT_WEIGHT  = 1.0
+STYLE_WEIGHT    = 1e3     
+TV_WEIGHT       = 1e-5      
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
@@ -106,14 +108,14 @@ def train_style_transfer():
     for i, target in enumerate(style_targets):
         print(f"Layer {i}: {target.shape}")
     
+    steps_per_epoch = len(dataset) // BATCH_SIZE
+    total_steps     = min(40000, steps_per_epoch * NUM_EPOCHS)
+    
     # Optimizer with better settings
     optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE, 
                           betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.OneCycleLR(
-        optimizer, 
-        max_lr=1e-3, 
-        total_steps=40000,
-        pct_start=0.3
+        optimizer, max_lr=1e-3, total_steps=total_steps, pct_start=0.3
     )
     
     # Training loop
