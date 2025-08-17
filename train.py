@@ -15,7 +15,7 @@ sys.path.append('/content/real-time-neural-style-transfer')
 from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
 
 
-BATCH_SIZE      = 4
+BATCH_SIZE      = 6
 LEARNING_RATE   = 1e-3
 NUM_EPOCHS      = 2
 
@@ -46,7 +46,7 @@ def get_style_targets(vgg, style_img):
         
         for feat in style_features:
             gram = gram_matrix(feat)
-            style_targets.append(gram.squeeze(0))  # Remove batch dimension for storage
+            style_targets.append(gram.squeeze(0))  
     return style_targets
 
 class COCODataset(torch.utils.data.Dataset):
@@ -109,7 +109,7 @@ def train_style_transfer():
         print(f"Layer {i}: {target.shape}")
     
     steps_per_epoch = len(dataset) // BATCH_SIZE
-    total_steps     = min(40000, steps_per_epoch * NUM_EPOCHS)
+    total_steps     = steps_per_epoch * NUM_EPOCHS
     
     # Optimizer with better settings
     optimizer = optim.Adam(style_net.parameters(), lr=LEARNING_RATE, 
@@ -123,7 +123,7 @@ def train_style_transfer():
     style_net.train()
     
     total_iterations = 0
-    target_iterations = 40000
+    total_steps = 40000
     
     for epoch in range(NUM_EPOCHS):
         epoch_loss = 0.0
@@ -132,7 +132,7 @@ def train_style_transfer():
         epoch_tv_loss = 0.0
         
         for batch_idx, content_batch in enumerate(dataloader):
-            if total_iterations >= target_iterations:
+            if total_iterations >= total_steps:
                 break
                 
             content_batch = content_batch.to(device)
@@ -171,7 +171,7 @@ def train_style_transfer():
             
             # Print progress
             if total_iterations % 50 == 0:
-                print(f"Iteration [{total_iterations}/{target_iterations}] "
+                print(f"Iteration [{total_iterations}/{total_steps}] "
                       f"Total Loss: {total_loss.item():.4f} "
                       f"Content: {c_loss.item():.4f} "
                       f"Style: {s_loss.item():.6f} "
@@ -188,10 +188,10 @@ def train_style_transfer():
                         mse = F.mse_loss(s_gram, target.unsqueeze(0).expand_as(s_gram))
                         print(f"Layer {i}: MSE = {mse:.8f}")
             
-            if total_iterations >= target_iterations:
+            if total_iterations >= total_steps:
                 break
         
-        if total_iterations >= target_iterations:
+        if total_iterations >= total_steps:
             break
     
     # Save final model

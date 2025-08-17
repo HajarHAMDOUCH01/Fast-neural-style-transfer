@@ -137,7 +137,6 @@ def style_loss(input_features, target_grams):
     total_loss = 0
     for input_feat, target_gram in zip(input_features, target_grams):
         input_gram = gram_matrix(input_feat)
-        # Expand target gram to match batch size
         batch_size = input_gram.size(0)
         if target_gram.dim() == 2:
             target_gram = target_gram.unsqueeze(0)
