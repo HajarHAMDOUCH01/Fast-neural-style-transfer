@@ -19,9 +19,9 @@ BATCH_SIZE      = 6
 LEARNING_RATE   = 1e-3
 NUM_EPOCHS      = 2
 
-CONTENT_WEIGHT  = 1.0
-STYLE_WEIGHT    = 1e3     
-TV_WEIGHT       = 1e-5      
+CONTENT_WEIGHT = 5.0
+STYLE_WEIGHT   = 50.0
+TV_WEIGHT      = 1e-6    
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

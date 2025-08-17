@@ -129,7 +129,7 @@ def gram_matrix(features):
     b, c, h, w = features.size()
     features = features.view(b, c, h * w)
     G = torch.bmm(features, features.transpose(1, 2))  
-    return G.div(c* h * w) 
+    return G.div(h * w) 
 
 # Fixed loss functions
 def style_loss(input_features, target_grams):
@@ -145,8 +145,8 @@ def style_loss(input_features, target_grams):
     return total_loss 
 
 def content_loss(input_features, target_features):
-    """Content loss using relu3_3 (index 2)"""
-    return F.mse_loss(input_features[2], target_features[2])  
+    """Content loss using relu4_3 (index 3)"""
+    return F.mse_loss(input_features[3], target_features[3])  
 
 def total_variation_loss(img):
     """Total variation regularization"""
