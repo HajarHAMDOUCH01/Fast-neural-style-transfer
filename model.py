@@ -102,8 +102,8 @@ class VGG16(nn.Module):
         # relu3_3
         for x in range(9, 16):
             self.slice3.add_module(str(x), vgg_features[x])
-        # relu4_3
-        for x in range(16, 23):
+        # relu4_2
+        for x in range(16, 22):
             self.slice4.add_module(str(x), vgg_features[x])
             
         # Freeze VGG parameters
@@ -119,9 +119,9 @@ class VGG16(nn.Module):
         h_relu1_2 = self.slice1(x)
         h_relu2_2 = self.slice2(h_relu1_2)
         h_relu3_3 = self.slice3(h_relu2_2)
-        h_relu4_3 = self.slice4(h_relu3_3)
+        h_relu4_2 = self.slice4(h_relu3_3)
         
-        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3]
+        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_2]
 
 def gram_matrix(features):
     if features.dim() == 3:
@@ -145,7 +145,7 @@ def style_loss(input_features, target_grams):
     return total_loss 
 
 def content_loss(input_features, target_features):
-    """Content loss using relu4_3 (index 3)"""
+    """Content loss using relu4_2 (index 3)"""
     return F.mse_loss(input_features[3], target_features[3])  
 
 def total_variation_loss(img):
