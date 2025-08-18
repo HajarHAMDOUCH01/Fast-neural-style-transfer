@@ -75,7 +75,6 @@ class StyleTransferNet(nn.Module):
         x = F.relu(self.in4(self.up1(x)))
         x = F.relu(self.in5(self.up2(x)))
 
-        # residual output (better content preservation)
         x = torch.clamp(self.final_conv(x) + inp, 0.0, 1.0)
         return x
 

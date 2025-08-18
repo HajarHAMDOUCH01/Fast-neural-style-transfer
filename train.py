@@ -7,7 +7,6 @@ from torchvision.datasets import CocoDetection
 from PIL import Image
 import torch.nn.functional as F
 import os
-import time
 import numpy as np
 
 import sys
@@ -50,7 +49,7 @@ def get_style_targets(vgg, style_img):
     return style_targets
 
 class COCODataset(torch.utils.data.Dataset):
-    """Custom COCO dataset for content images"""
+    """Custom dataset class for content images"""
     def __init__(self, root, transform=None):
         self.root = root
         self.transform = transform
@@ -79,8 +78,6 @@ class COCODataset(torch.utils.data.Dataset):
             return self.__getitem__(np.random.randint(0, len(self.images)))
 
 def train_style_transfer():
-    """Final fixed training function"""
-    
     # Data transforms
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
@@ -149,12 +146,10 @@ def train_style_transfer():
             content_features = vgg(content_batch)
             stylized_features = vgg(stylized_batch)
             
-            # Compute losses with proper weighting
             c_loss = content_loss(stylized_features, content_features)
             s_loss = style_loss(stylized_features, style_targets)
             tv_loss = total_variation_loss(stylized_batch)
             
-            # Total loss with proper weighting
             total_loss = (CONTENT_WEIGHT * c_loss + 
                          STYLE_WEIGHT * s_loss + 
                          TV_WEIGHT * tv_loss)
@@ -182,7 +177,7 @@ def train_style_transfer():
                       f"Style: {s_loss.item():.6f} "
                       f"TV: {tv_loss.item():.6f}")
             
-            # Debug gram matrix ranges occasionally
+            # Debug 
             if total_iterations % 1000 == 0:
                 print(f"\n=== Debug at iteration {total_iterations} ===")
                 with torch.no_grad():
