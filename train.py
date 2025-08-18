@@ -200,7 +200,7 @@ def train_style_transfer():
             break
     
     # Save final model
-    torch.save(style_net.state_dict(), 'style_transfer_final.pth')
+    torch.save(style_net.state_dict(), '/content/drive/MyDrive/style_transfer_final.pth')
     print("Training completed!")
 
 def test_inference(model_path, content_path, output_path):
