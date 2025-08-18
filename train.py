@@ -188,8 +188,10 @@ def train_style_transfer():
                         mse = F.mse_loss(s_gram, target.unsqueeze(0).expand_as(s_gram))
                         print(f"Layer {i}: MSE = {mse:.8f}")
             
-            if total_iterations == 15000:
-                torch.save(style_net.state_dict(), 'style_transfer_final_15k.pth')
+            if total_iterations % 10000 == 0:
+                torch.save(style_net.state_dict(),
+                        f"/content/drive/MyDrive/style_transfer_final_{total_iterations}.pth")
+
             
             if total_iterations >= total_steps:
                 break
