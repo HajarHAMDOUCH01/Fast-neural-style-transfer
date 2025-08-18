@@ -170,7 +170,7 @@ def train_style_transfer():
             total_iterations += 1
             
             # Print progress
-            if total_iterations % 50 == 0:
+            if total_iterations % 100 == 0:
                 print(f"Iteration [{total_iterations}/{total_steps}] "
                       f"Total Loss: {total_loss.item():.4f} "
                       f"Content: {c_loss.item():.4f} "
@@ -187,6 +187,9 @@ def train_style_transfer():
                         print(f"Layer {i}: target_gram range: {target.min():.8f} - {target.max():.8f}")
                         mse = F.mse_loss(s_gram, target.unsqueeze(0).expand_as(s_gram))
                         print(f"Layer {i}: MSE = {mse:.8f}")
+            
+            if total_iterations == 15000:
+                torch.save(style_net.state_dict(), 'style_transfer_final_15k.pth')
             
             if total_iterations >= total_steps:
                 break
