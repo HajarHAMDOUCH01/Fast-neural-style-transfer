@@ -75,7 +75,7 @@ class StyleTransferNet(nn.Module):
         x = F.relu(self.in4(self.up1(x)))
         x = F.relu(self.in5(self.up2(x)))
 
-        x = torch.clamp(self.final_conv(x) + inp, 0.0, 1.0)
+        x = self.final_conv(x) + inp
         return x
 
 class VGG16(nn.Module):
@@ -132,7 +132,6 @@ def gram_matrix(features):
 
 # Fixed loss functions
 def style_loss(input_features, target_grams):
-    """Fixed style loss - handles batch dimension properly"""
     total_loss = 0
     for input_feat, target_gram in zip(input_features, target_grams):
         input_gram = gram_matrix(input_feat)

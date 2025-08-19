@@ -192,7 +192,6 @@ def train_style_transfer():
                 torch.save(style_net.state_dict(),
                         f"/content/drive/MyDrive/style_transfer_final_{total_iterations}.pth")
 
-            
             if total_iterations >= total_steps:
                 break
         
@@ -225,6 +224,7 @@ def test_inference(model_path, content_path, output_path):
         
     # Save result
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].cpu())
+    stylized_img = torch.clamp(stylized_img, 0.0, 1.0)
     stylized_img.save(output_path)
     print(f"Stylized image saved to {output_path}")
 
