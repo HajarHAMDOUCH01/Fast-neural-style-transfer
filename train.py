@@ -48,7 +48,9 @@ def get_style_targets(vgg, style_img):
             style_targets.append(gram.squeeze(0))  
     return style_targets
 
-class COCODataset(torch.utils.data.Dataset):
+# not necessarly coco dataset , plus you only need a directory that has images , whatever the dataset is 
+# in the case of coco dataset only take the tain directory
+class COCODataset(torch.utils.data.Dataset): 
     """Custom dataset class for content images"""
     def __init__(self, root, transform=None):
         self.root = root
@@ -77,7 +79,30 @@ class COCODataset(torch.utils.data.Dataset):
             # Return a random index if current image fails
             return self.__getitem__(np.random.randint(0, len(self.images)))
 
-def train_style_transfer():
+def save_checkpoint(model, optimizer, scheduler, iteration, loss, filepath):
+    """Saving complete checkpoint including optimizer and scheduler state"""
+    checkpoint = {
+        'iteration': iteration,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict(),
+        'loss': loss
+    }
+    torch.save(checkpoint, filepath)
+    print(f"Checkpoint saved at iteration {iteration}")
+
+def load_checkpoint(model, optimizer, scheduler, filepath):
+    """loading checkpoint and returning the iteration to resume from"""
+    checkpoint = torch.load(filepath, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+
+    start_iteration = checkpoint['iteration']
+    print(f"Resuming training from iteration {start_iteration}")
+    return start_iteration
+
+def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     # Data transforms
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
@@ -104,9 +129,9 @@ def train_style_transfer():
     print("Style target shapes:")
     for i, target in enumerate(style_targets):
         print(f"Layer {i}: {target.shape}")
-    
-    steps_per_epoch = len(dataset) // BATCH_SIZE
-    total_steps     = steps_per_epoch * NUM_EPOCHS
+
+    start_iteration = 0
+    total_steps = 40000
     
     optimizer = optim.Adam(style_net.parameters(),
                         lr=LEARNING_RATE,
@@ -114,19 +139,32 @@ def train_style_transfer():
                         eps=1e-8,
                         weight_decay=1e-4)
 
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=total_steps,   
-        eta_min=1e-6         
-    )
-    
+    if resume_from_checkpoint == True and checkpoint_path is not None and os.path.exists(checkpoint_path):
+        temp_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=total_steps, eta_min=1e-6
+        )
+        start_iteration = load_checkpoint(style_net, optimizer, temp_scheduler, checkpoint_path)
+        remaining_steps = total_steps - start_iteration
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=remaining_steps if remaining_steps > 0 else 1,
+            eta_min=1e-6
+        )
+        print(f"Resuming training from iteration {start_iteration}")
+    else:
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                optimizer,
+                T_max=total_steps,
+                eta_min=1e-6
+            )
+            print(f"Starting training from scratch")
+            
     # Training loop
     print("Starting training...")
     style_net.train()
     
-    total_iterations = 0
-    total_steps = 40000
-    
+    total_iterations = start_iteration
+
     for epoch in range(NUM_EPOCHS):
         epoch_loss = 0.0
         epoch_content_loss = 0.0
@@ -188,10 +226,10 @@ def train_style_transfer():
                         mse = F.mse_loss(s_gram, target.unsqueeze(0).expand_as(s_gram))
                         print(f"Layer {i}: MSE = {mse:.8f}")
             
-            if total_iterations % 10000 == 0:
-                torch.save(style_net.state_dict(),
-                        f"/content/drive/MyDrive/style_transfer_final_{total_iterations}.pth")
-
+            if total_iterations % 10000 == 0 and total_iterations > start_iteration:
+                torch.save(style_net.state_dict(), f"/content/drive/MyDrive/style_transfer_final_{total_iterations}.pth")
+                save_checkpoint(style_net, optimizer, scheduler, total_iterations, total_loss.item(), f"/content/drive/MyDrive/style_transfer_checkpoint_{total_iterations}.pth")
+                
             if total_iterations >= total_steps:
                 break
         
@@ -229,6 +267,13 @@ def test_inference(model_path, content_path, output_path):
     print(f"Stylized image saved to {output_path}")
 
 if __name__ == '__main__':
-    train_style_transfer()
+
+    # TO DO : a function that takes command parameters and handles this
+
+    # if training from the start : 
+    # train_style_transfer(resume_from_checkpoint=False)
+
+    # if training from a checkpoint : 
+    train_style_transfer(resume_from_checkpoint=True, checkpoint_path='/content/drive/MyDrive/style_transfer_checkpoint_10000.pth')
 
     # test_inference('style_transfer_final.pth', 'test_content.jpg', 'stylized_output.jpg')

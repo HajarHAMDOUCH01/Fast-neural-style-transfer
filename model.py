@@ -128,9 +128,9 @@ def gram_matrix(features):
     b, c, h, w = features.size()
     features = features.view(b, c, h * w)
     G = torch.bmm(features, features.transpose(1, 2))  
-    return G.div(h * w) 
+    return G.div(h * w) # -> to fix
 
-# Fixed loss functions
+#loss functions
 def style_loss(input_features, target_grams):
     total_loss = 0
     for input_feat, target_gram in zip(input_features, target_grams):
