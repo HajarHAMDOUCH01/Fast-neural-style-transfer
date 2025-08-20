@@ -75,7 +75,7 @@ class StyleTransferNet(nn.Module):
         x = F.relu(self.in4(self.up1(x)))
         x = F.relu(self.in5(self.up2(x)))
 
-        x = self.final_conv(x) + inp
+        x = self.final_conv(x)
         return x
 
 class VGG16(nn.Module):
@@ -101,8 +101,8 @@ class VGG16(nn.Module):
         # relu3_3
         for x in range(9, 16):
             self.slice3.add_module(str(x), vgg_features[x])
-        # relu4_3
-        for x in range(16, 23):
+        # relu4_2
+        for x in range(16, 21):
             self.slice4.add_module(str(x), vgg_features[x])
             
         # Freeze VGG parameters
@@ -118,9 +118,9 @@ class VGG16(nn.Module):
         h_relu1_2 = self.slice1(x)
         h_relu2_2 = self.slice2(h_relu1_2)
         h_relu3_3 = self.slice3(h_relu2_2)
-        h_relu4_3 = self.slice4(h_relu3_3)
+        h_relu4_2 = self.slice4(h_relu3_3)
         
-        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3]
+        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_2]
 
 def gram_matrix(features):
     if features.dim() == 3:
@@ -128,7 +128,7 @@ def gram_matrix(features):
     b, c, h, w = features.size()
     features = features.view(b, c, h * w)
     G = torch.bmm(features, features.transpose(1, 2))  
-    return G.div(h * w) # -> to fix
+    return G.div(c * h * w) # -> to fix
 
 #loss functions
 def style_loss(input_features, target_grams):
