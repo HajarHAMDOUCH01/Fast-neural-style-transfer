@@ -76,6 +76,7 @@ class StyleTransferNet(nn.Module):
         x = F.relu(self.in5(self.up2(x)))
 
         x = self.final_conv(x)
+        x = torch.tanh(x) * 127.5 + 127.5
         return x
 
 class VGG16(nn.Module):
@@ -110,7 +111,10 @@ class VGG16(nn.Module):
             param.requires_grad = False
             
     def forward(self, x):
-        # Normalize input for VGG
+        if x.max() > 10:  
+            x = x / 255.0 
+        
+        # Standard ImageNet normalization
         mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device)
         std = torch.tensor([0.229, 0.224, 0.225]).to(x.device)
         x = (x - mean.view(1, 3, 1, 1)) / std.view(1, 3, 1, 1)
@@ -128,7 +132,7 @@ def gram_matrix(features):
     b, c, h, w = features.size()
     features = features.view(b, c, h * w)
     G = torch.bmm(features, features.transpose(1, 2))  
-    return G.div(c * h * w) # -> to fix
+    return G.div(c * h * w * c * h * w) 
 
 #loss functions
 def style_loss(input_features, target_grams):

@@ -18,24 +18,23 @@ BATCH_SIZE      = 6
 LEARNING_RATE   = 1e-3
 NUM_EPOCHS      = 2
 
-CONTENT_WEIGHT = 10
-STYLE_WEIGHT   = 20
-TV_WEIGHT      = 1e-6    
+CONTENT_WEIGHT = 1
+STYLE_WEIGHT   = 5
+TV_WEIGHT      = 1e-4
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 def load_style_image(style_path, size=256):
-    """Load and preprocess style image"""
     style_transform = transforms.Compose([
         transforms.Resize((size, size)),
         transforms.ToTensor()
     ])
     
     style_img = Image.open(style_path).convert('RGB')
-    style_img = style_transform(style_img).unsqueeze(0)
-    return style_img.to(device)
+    style_img = style_transform(style_img) * 255.0  
+    return style_img.unsqueeze(0).to(device)
 
 def get_style_targets(vgg, style_img):
     """Fixed style target computation"""
@@ -107,12 +106,12 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(p=0.5),
-        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Lambda(lambda x: x * 255.0)  # Ensure [0,255] range
     ])
     
     # Load dataset
-    dataset = COCODataset(root='/kaggle/input/imagenet/imagenet/train', transform=transform)
+    dataset = COCODataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
                            num_workers=2, pin_memory=True)
     
@@ -122,7 +121,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     vgg.eval()
     
     # Load style image and compute targets
-    style_img = load_style_image('/content/picasso.jpg')
+    style_img = load_style_image('/content/style.jpg')
     style_targets = get_style_targets(vgg, style_img)
     
     # Print style target shapes for debugging
@@ -260,9 +259,8 @@ def test_inference(model_path, content_path, output_path):
     with torch.no_grad():
         stylized_tensor = style_net(content_tensor)
         
-    # Save result
+    stylized_tensor = stylized_tensor.clamp(0.0, 1.0)
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].cpu())
-    stylized_img = torch.clamp(stylized_img, 0.0, 1.0)
     stylized_img.save(output_path)
     print(f"Stylized image saved to {output_path}")
 
@@ -271,9 +269,9 @@ if __name__ == '__main__':
     # TO DO : a function that takes command parameters and handles this
 
     # if training from the start : 
-    # train_style_transfer(resume_from_checkpoint=False)
+    train_style_transfer(resume_from_checkpoint=False)
 
     # if training from a checkpoint : 
-    train_style_transfer(resume_from_checkpoint=True, checkpoint_path='/content/drive/MyDrive/style_transfer_checkpoint_10000.pth')
+    # train_style_transfer(resume_from_checkpoint=True, checkpoint_path='/content/drive/MyDrive/style_transfer_checkpoint_10000.pth')
 
     # test_inference('style_transfer_final.pth', 'test_content.jpg', 'stylized_output.jpg')
