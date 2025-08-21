@@ -107,7 +107,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.ToTensor(),
-        transforms.Lambda(lambda x: x * 255.0)  # Ensure [0,255] range
+        transforms.Lambda(lambda x: x * 255.0)  
     ])
     
     # Load dataset
