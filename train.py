@@ -14,12 +14,12 @@ sys.path.append('/content/real-time-neural-style-transfer')
 from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
 
 
-BATCH_SIZE      = 4  # Reduced for stability
+BATCH_SIZE      = 4  
 LEARNING_RATE   = 1e-3
 NUM_EPOCHS      = 2
 
-CONTENT_WEIGHT = 1
-STYLE_WEIGHT   = 1e6  # Increased significantly
+CONTENT_WEIGHT = 5
+STYLE_WEIGHT   = 10
 TV_WEIGHT      = 1e-4
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -29,7 +29,7 @@ def load_style_image(style_path, size=256):
     """ style image loading with consistent preprocessing"""
     style_transform = transforms.Compose([
         transforms.Resize((size, size)),
-        transforms.ToTensor()  # Keep in [0,1] range
+        transforms.ToTensor()  
     ])
     
     style_img = Image.open(style_path).convert('RGB')
@@ -39,9 +39,7 @@ def load_style_image(style_path, size=256):
 def get_style_targets(vgg, style_img):
     """ style target computation with proper normalization"""
     with torch.no_grad():
-        # Convert to [0,255] range for VGG (to match output of StyleTransferNet)
-        style_img_255 = style_img * 255.0
-        style_features = vgg(style_img_255)
+        style_features = vgg(style_img)
         style_targets = []
         
         for feat in style_features:
@@ -74,13 +72,9 @@ class VGG16(nn.Module):
             param.requires_grad = False
             
     def forward(self, x):
-        # Input should be in [0, 255] range
-        # Normalize to ImageNet stats
         mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device)
         std = torch.tensor([0.229, 0.224, 0.225]).to(x.device)
         
-        # Convert from [0,255] to [0,1] then normalize
-        x = x / 255.0
         x = (x - mean.view(1, 3, 1, 1)) / std.view(1, 3, 1, 1)
         
         h_relu1_2 = self.slice1(x)
@@ -120,16 +114,14 @@ def save_sample_image(model, content_batch, iteration, device):
     """Save a sample stylized image for visual inspection"""
     model.eval()
     with torch.no_grad():
-        # Take first image from batch
-        sample_content = content_batch[0:1]  # Keep batch dimension
-        sample_content_255 = sample_content * 255.0  # Convert to [0,255]
+        # first image from batch
+        sample_content = content_batch[0:1]  
+        sample_content_255 = sample_content * 255.0  
         
         stylized = model(sample_content_255)
         
-        # Convert back to [0,1] for saving
         stylized = stylized.clamp(0, 255) / 255.0
         
-        # Save image
         from torchvision.utils import save_image
         save_image(stylized, f'/content/sample_output_{iteration}.jpg')
         save_image(sample_content, f'/content/sample_content_{iteration}.jpg')
@@ -137,23 +129,20 @@ def save_sample_image(model, content_batch, iteration, device):
     model.train()
 
 def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
-    # Data transforms - keep in [0,1] range
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(p=0.5),
-        transforms.ToTensor()  # [0,1] range
+        transforms.ToTensor()  
     ])
     
     dataset = COCODataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
                            num_workers=2, pin_memory=True)
     
-    # Initialize networks with  VGG
     style_net = StyleTransferNet().to(device)
     vgg = VGG16().to(device)
     vgg.eval()
     
-    # Load style image and compute targets
     style_img = load_style_image('/content/style.jpg')
     style_targets = get_style_targets(vgg, style_img)
     
@@ -164,12 +153,11 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     start_iteration = 0
     total_steps = 40000
     
-    # Use a more conservative optimizer setup
     optimizer = optim.Adam(style_net.parameters(),
                         lr=LEARNING_RATE,
                         betas=(0.9, 0.999),
                         eps=1e-8,
-                        weight_decay=1e-5)  # Reduced weight decay
+                        weight_decay=1e-5)  
 
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
@@ -189,18 +177,12 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
                 break
                 
             content_batch = content_batch.to(device)
+                        
+            stylized_batch = style_net(content_batch)
             
-            # Convert content to [0,255] range for the model
-            content_batch_255 = content_batch * 255.0
-            
-            # Forward pass
-            stylized_batch = style_net(content_batch_255)
-            
-            # Extract features (both inputs in [0,255] range now)
-            content_features = vgg(content_batch_255)
+            content_features = vgg(content_batch)
             stylized_features = vgg(stylized_batch)
             
-            # Compute losses
             c_loss = content_loss(stylized_features, content_features)
             s_loss = style_loss(stylized_features, style_targets)
             tv_loss = total_variation_loss(stylized_batch)
@@ -209,18 +191,15 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
                          STYLE_WEIGHT * s_loss + 
                          TV_WEIGHT * tv_loss)
             
-            # Check for NaN
             if torch.isnan(total_loss):
                 print(f"NaN loss detected at iteration {total_iterations}")
                 print(f"Content loss: {c_loss}, Style loss: {s_loss}, TV loss: {tv_loss}")
                 continue
             
-            # Backward pass with gradient clipping
             optimizer.zero_grad()
             total_loss.backward()
             
-            # More aggressive gradient clipping
-            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=0.5)
+            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1)
             
             optimizer.step()
             scheduler.step()
@@ -228,7 +207,6 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
             running_loss += total_loss.item()
             total_iterations += 1
             
-            # Print progress more frequently initially
             if total_iterations <= 1000 and total_iterations % 50 == 0:
                 avg_loss = running_loss / 50
                 print(f"Iteration [{total_iterations}/{total_steps}] "
@@ -246,11 +224,10 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
                       f"TV: {tv_loss.item():.6f}")
                 running_loss = 0.0
             
-            # Save sample images for visual inspection
             if total_iterations % 1000 == 0:
                 save_sample_image(style_net, content_batch, total_iterations, device)
             
-            # Save checkpoints
+            # checkpoints saving
             if total_iterations % 5000 == 0 and total_iterations > start_iteration:
                 torch.save(style_net.state_dict(), 
                           f"/content/drive/MyDrive/style_transfer__{total_iterations}.pth")
@@ -261,18 +238,18 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
         if total_iterations >= total_steps:
             break
     
-    # Save final model
+    # final model saving
     torch.save(style_net.state_dict(), '/content/drive/MyDrive/style_transfer_final.pth')
     print("Training completed!")
 
 def test_inference(model_path, content_path, output_path):
     """Test the trained model on a single image"""
-    # Load model
+    # Loading the model
     style_net = StyleTransferNet().to(device)
     style_net.load_state_dict(torch.load(model_path, map_location=device))
     style_net.eval()
     
-    # Load content image
+    # Loading the content image
     transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.ToTensor()
@@ -281,7 +258,7 @@ def test_inference(model_path, content_path, output_path):
     content_img = Image.open(content_path).convert('RGB')
     content_tensor = transform(content_img).unsqueeze(0).to(device)
     
-    # Generate stylized image
+    # Generating stylized image
     with torch.no_grad():
         stylized_tensor = style_net(content_tensor)
         

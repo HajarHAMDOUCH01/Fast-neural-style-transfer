@@ -55,7 +55,7 @@ class StyleTransferNet(nn.Module):
         self.res4 = ResidualBlock(128)
         self.res5 = ResidualBlock(128)
 
-        # Decoder (upsample + conv)
+        # Decoder 
         self.up1 = UpsampleConv(128, 64, kernel=3, scale=2)
         self.in4 = nn.InstanceNorm2d(64, affine=True, track_running_stats=False)
 
@@ -83,11 +83,11 @@ class VGG16(nn.Module):
     """VGG16 features for perceptual losses"""
     def __init__(self):
         super(VGG16, self).__init__()
-        # Load pretrained VGG16 with updated syntax
+
         from torchvision.models import vgg16, VGG16_Weights
         vgg_features = vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
         
-        # Extract specific layers for content and style losses
+        # Extraction of specific layers for content and style losses
         self.slice1 = nn.Sequential()
         self.slice2 = nn.Sequential()
         self.slice3 = nn.Sequential()
@@ -106,7 +106,6 @@ class VGG16(nn.Module):
         for x in range(16, 21):
             self.slice4.add_module(str(x), vgg_features[x])
             
-        # Freeze VGG parameters
         for param in self.parameters():
             param.requires_grad = False
             
@@ -128,23 +127,30 @@ def gram_matrix(features):
     b, c, h, w = features.size()
     features = features.view(b, c, h * w)
     G = torch.bmm(features, features.transpose(1, 2))  
-    return G.div(c * h * w) 
+    return G.div(h * w) 
 
 #loss functions
 def style_loss(input_features, target_grams):
-    total_loss = 0
-    for input_feat, target_gram in zip(input_features, target_grams):
-        input_gram = gram_matrix(input_feat)
-        batch_size = input_gram.size(0)
-        if target_gram.dim() == 2:
-            target_gram = target_gram.unsqueeze(0)
-        target_gram = target_gram.expand(batch_size, -1, -1)
-        total_loss += F.mse_loss(input_gram, target_gram)
-    return total_loss 
+    style_weights = [0.2, 0.2, 0.2, 0.4]
+    total_loss = 0.0
+    for f, g, w in zip(input_features, target_grams, style_weights):
+        gram_f = gram_matrix(f)
+
+        if g.dim() == 2:
+            g = g.unsqueeze(0)
+        g = g.expand(gram_f.size(0), -1, -1)
+
+        total_loss += w * F.mse_loss(gram_f, g)
+
+    return total_loss
+
 
 def content_loss(input_features, target_features):
     """Content loss using relu4_2 (index 3)"""
-    return F.mse_loss(input_features[3], target_features[3])  
+    content_loss = F.mse_loss(input_features[2], target_features[2]) \
+             + F.mse_loss(input_features[3], target_features[3])
+
+    return content_loss  
 
 def total_variation_loss(img):
     """Total variation regularization"""
