@@ -15,18 +15,17 @@ from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss
 
 
 BATCH_SIZE      = 4  
-LEARNING_RATE   = 1e-3
+LEARNING_RATE   = 1e-4
 NUM_EPOCHS      = 2
 
-CONTENT_WEIGHT = 5
-STYLE_WEIGHT   = 10
-TV_WEIGHT      = 1e-4
+CONTENT_WEIGHT = 1.0
+STYLE_WEIGHT   = 1000
+TV_WEIGHT      = 1e-2
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 def load_style_image(style_path, size=256):
-    """ style image loading with consistent preprocessing"""
     style_transform = transforms.Compose([
         transforms.Resize((size, size)),
         transforms.ToTensor()  
@@ -37,7 +36,6 @@ def load_style_image(style_path, size=256):
     return style_img.unsqueeze(0).to(device)
 
 def get_style_targets(vgg, style_img):
-    """ style target computation with proper normalization"""
     with torch.no_grad():
         style_features = vgg(style_img)
         style_targets = []
@@ -46,43 +44,6 @@ def get_style_targets(vgg, style_img):
             gram = gram_matrix(feat)
             style_targets.append(gram.squeeze(0))
     return style_targets
-
-class VGG16(nn.Module):
-    """VGG16 features with corrected normalization"""
-    def __init__(self):
-        super(VGG16, self).__init__()
-        from torchvision.models import vgg16, VGG16_Weights
-        vgg_features = vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
-        
-        self.slice1 = nn.Sequential()
-        self.slice2 = nn.Sequential()
-        self.slice3 = nn.Sequential()
-        self.slice4 = nn.Sequential()
-        
-        for x in range(4):
-            self.slice1.add_module(str(x), vgg_features[x])
-        for x in range(4, 9):
-            self.slice2.add_module(str(x), vgg_features[x])
-        for x in range(9, 16):
-            self.slice3.add_module(str(x), vgg_features[x])
-        for x in range(16, 21):
-            self.slice4.add_module(str(x), vgg_features[x])
-            
-        for param in self.parameters():
-            param.requires_grad = False
-            
-    def forward(self, x):
-        mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device)
-        std = torch.tensor([0.229, 0.224, 0.225]).to(x.device)
-        
-        x = (x - mean.view(1, 3, 1, 1)) / std.view(1, 3, 1, 1)
-        
-        h_relu1_2 = self.slice1(x)
-        h_relu2_2 = self.slice2(h_relu1_2)
-        h_relu3_3 = self.slice3(h_relu2_2)
-        h_relu4_2 = self.slice4(h_relu3_3)
-        
-        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_2]
 
 class COCODataset(torch.utils.data.Dataset): 
     def __init__(self, root, transform=None):
@@ -224,9 +185,6 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
                       f"TV: {tv_loss.item():.6f}")
                 running_loss = 0.0
             
-            if total_iterations % 1000 == 0:
-                save_sample_image(style_net, content_batch, total_iterations, device)
-            
             # checkpoints saving
             if total_iterations % 5000 == 0 and total_iterations > start_iteration:
                 torch.save(style_net.state_dict(), 
@@ -255,14 +213,13 @@ def test_inference(model_path, content_path, output_path):
         transforms.ToTensor()
     ])
     
-    content_img = Image.open(content_path).convert('RGB')
+    content_img = Image.open(content_path)
     content_tensor = transform(content_img).unsqueeze(0).to(device)
     
     # Generating stylized image
     with torch.no_grad():
         stylized_tensor = style_net(content_tensor)
         
-    stylized_tensor = stylized_tensor.clamp(0.0, 1.0)
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].cpu())
     stylized_img.save(output_path)
     print(f"Stylized image saved to {output_path}")

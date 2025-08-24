@@ -65,7 +65,7 @@ class StyleTransferNet(nn.Module):
         self.final_conv = ConvLayer(32, 3, kernel=9, stride=1)
 
     def forward(self, x):
-        inp = x
+        x = torch.clamp(x, 0.0, 1.0)
         x = F.relu(self.in1(self.conv1(x)))
         x = F.relu(self.in2(self.conv2(x)))
         x = F.relu(self.in3(self.conv3(x)))
@@ -77,6 +77,7 @@ class StyleTransferNet(nn.Module):
 
         x = self.final_conv(x)
         x = torch.tanh(x)
+        x = (x+1.0) / 2.0
         return x
 
 class VGG16(nn.Module):
@@ -102,59 +103,57 @@ class VGG16(nn.Module):
         # relu3_3
         for x in range(9, 16):
             self.slice3.add_module(str(x), vgg_features[x])
-        # relu4_2
-        for x in range(16, 21):
+        # relu4_3
+        for x in range(16, 23):
             self.slice4.add_module(str(x), vgg_features[x])
             
         for param in self.parameters():
             param.requires_grad = False
             
     def forward(self, x):
-        mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device)
-        std = torch.tensor([0.229, 0.224, 0.225]).to(x.device)
-        x = (x - mean.view(1, 3, 1, 1)) / std.view(1, 3, 1, 1)
+        x = torch.clamp(x, 0.0, 1.0)
+
+        mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device).view(1, 3, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225]).to(x.device).view(1, 3, 1, 1)
+        x = (x - mean) / std
         
         h_relu1_2 = self.slice1(x)
         h_relu2_2 = self.slice2(h_relu1_2)
         h_relu3_3 = self.slice3(h_relu2_2)
-        h_relu4_2 = self.slice4(h_relu3_3)
+        h_relu4_3 = self.slice4(h_relu3_3)
         
-        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_2]
+        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3]
 
 def gram_matrix(features):
-    if features.dim() == 3:
-        features = features.unsqueeze(0)
     b, c, h, w = features.size()
     features = features.view(b, c, h * w)
     G = torch.bmm(features, features.transpose(1, 2))  
-    return G.div(h * w) 
+    return G.div(c * h * w) 
 
 #loss functions
 def style_loss(input_features, target_grams):
-    style_weights = [0.2, 0.2, 0.2, 0.4]
+    style_weights = [1.0/4, 1.0/4, 1.0/4, 1.0/4]
     total_loss = 0.0
-    for f, g, w in zip(input_features, target_grams, style_weights):
-        gram_f = gram_matrix(f)
+    for input_feat, target_gram, weight in zip(input_features, target_grams, style_weights):
+        input_gram = gram_matrix(input_feat)
 
-        if g.dim() == 2:
-            g = g.unsqueeze(0)
-        g = g.expand(gram_f.size(0), -1, -1)
+        if target_gram.dim() == 2:
+            target_gram = target_gram.unsqueeze(0)
+        if input_gram.size(0) != target_gram.size(0):
+            target_gram = target_gram.expand(input_gram.size(0), -1, -1)
 
-        total_loss += w * F.mse_loss(gram_f, g)
+        total_loss += weight * F.mse_loss(input_gram, target_gram)
 
     return total_loss
 
 
 def content_loss(input_features, target_features):
-    """Content loss using relu4_2 (index 3)"""
-    content_loss = F.mse_loss(input_features[2], target_features[2]) \
-             + F.mse_loss(input_features[3], target_features[3])
-
-    return content_loss  
+    return F.mse_loss(input_features[3], target_features[3]) 
 
 def total_variation_loss(img):
-    """Total variation regularization"""
-    bs_img, c_img, h_img, w_img = img.size()
+    batch_size, channels, height, width = img.size()
+    
     tv_h = torch.pow(img[:, :, 1:, :] - img[:, :, :-1, :], 2).sum()
     tv_w = torch.pow(img[:, :, :, 1:] - img[:, :, :, :-1], 2).sum()
-    return (tv_h + tv_w) / (bs_img * c_img * h_img * w_img)
+    
+    return (tv_h + tv_w) / (batch_size * channels * height * width)
