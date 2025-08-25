@@ -25,7 +25,7 @@ TV_WEIGHT      = 1e-2
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-def load_style_image(style_path, size=256):
+def load_style_image(style_path, size=512):
     style_transform = transforms.Compose([
         transforms.Resize((size, size)),
         transforms.ToTensor()  
@@ -91,7 +91,7 @@ def save_sample_image(model, content_batch, iteration, device):
 
 def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     transform = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((512, 512)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.ToTensor()  
     ])

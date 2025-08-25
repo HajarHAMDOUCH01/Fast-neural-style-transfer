@@ -157,11 +157,12 @@ class PerceptualLoss(nn.Module):
             loss += weight * F.l1_loss(inp_feat, tgt_feat)
         return loss
 
-def gram_matrix(features):
-    b, c, h, w = features.size()
-    features = features.view(b, c, h * w)
-    G = torch.bmm(features, features.transpose(1, 2))  
-    return G.div(c * h * w) 
+def gram_matrix(input_feat):
+    b, c, h, w = input_feat.size()
+    features = input_feat.view(b, c, h * w)
+    
+    gram = torch.bmm(features, features.transpose(1, 2))
+    gram = gram / (c * h * w) 
 
 #loss functions
 def style_loss(input_features, target_grams):
@@ -169,18 +170,13 @@ def style_loss(input_features, target_grams):
     total_loss = 0.0
     
     for input_feat, target_gram, weight in zip(input_features, target_grams, style_weights):
-        b, c, h, w = input_feat.size()
-        features = input_feat.view(b, c, h * w)
-        
-        features = F.normalize(features, p=2, dim=2)
-        gram = torch.bmm(features, features.transpose(1, 2))
-        gram = gram / (c * h * w)  
+        gram = gram_matrix(input_feat)
         
         if target_gram.dim() == 2:
             target_gram = target_gram.unsqueeze(0)
         target_gram = target_gram.expand_as(gram)
         
-        total_loss += weight * F.l1_loss(gram, target_gram)
+        total_loss += weight * F.mse_loss(gram, target_gram)
     
     return total_loss
 
