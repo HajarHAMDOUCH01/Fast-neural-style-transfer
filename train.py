@@ -11,7 +11,7 @@ import numpy as np
 
 import sys
 sys.path.append('/content/real-time-neural-style-transfer')
-from model import StyleTransferNet, VGG16, gram_matrix, content_loss, style_loss, total_variation_loss
+from model import StyleTransferNet, VGG16, gram_matrix, PerceptualLoss, style_loss, total_variation_loss
 
 
 BATCH_SIZE      = 4  
@@ -140,11 +140,13 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
             content_batch = content_batch.to(device)
                         
             stylized_batch = style_net(content_batch)
+
+            stylized_batch_scaled = (stylized_batch + 1.0) / 2.0
             
             content_features = vgg(content_batch)
             stylized_features = vgg(stylized_batch)
             
-            c_loss = content_loss(stylized_features, content_features)
+            c_loss = PerceptualLoss(vgg)(stylized_features, content_features)
             s_loss = style_loss(stylized_features, style_targets)
             tv_loss = total_variation_loss(stylized_batch)
             
@@ -160,7 +162,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
             optimizer.zero_grad()
             total_loss.backward()
             
-            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1)
+            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=5.0)
             
             optimizer.step()
             scheduler.step()

@@ -2,6 +2,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class AdaIN(nn.Module):
+    def __init__(self, num_features):
+        super().__init__()
+        self.num_features = num_features
+        self.weight = nn.Parameter(torch.ones(num_features))
+        self.bias = nn.Parameter(torch.zeros(num_features))
+    
+    def forward(self, x):
+        b, c, h, w = x.size()
+        x_reshaped = x.view(b, c, -1)
+        mean = x_reshaped.mean(dim=2, keepdim=True).unsqueeze(3)
+        std = x_reshaped.std(dim=2, keepdim=True, unbiased=False).unsqueeze(3)
+
+        normalized = (x - mean) / (std + 1e-8)
+
+        weight = self.weight.view(1, c, 1, 1)
+        bias = self.bias.view(1, c, 1, 1)
+
 class ConvLayer(nn.Module):
     def __init__(self, in_ch, out_ch, kernel, stride=1):
         super().__init__()
@@ -16,9 +34,9 @@ class ResidualBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.conv1 = ConvLayer(channels, channels, kernel=3)
-        self.in1 = nn.InstanceNorm2d(channels, affine=True, track_running_stats=False)
+        self.in1 = AdaIN(channels)
         self.conv2 = ConvLayer(channels, channels, kernel=3)
-        self.in2 = nn.InstanceNorm2d(channels, affine=True, track_running_stats=False)
+        self.in2 = AdaIN(channels)
 
     def forward(self, x):
         y = F.relu(self.in1(self.conv1(x)))
@@ -29,56 +47,58 @@ class ResidualBlock(nn.Module):
 class UpsampleConv(nn.Module):
     def __init__(self, in_ch, out_ch, kernel, scale=2):
         super().__init__()
-        self.upsample = nn.Upsample(scale_factor=scale, mode='nearest')
-        self.conv = ConvLayer(in_ch, out_ch, kernel)
+        # Use transposed convolution instead of upsample + conv for better quality
+        pad = kernel // 2
+        self.conv_transpose = nn.ConvTranspose2d(
+            in_ch, out_ch, kernel_size=kernel, stride=scale, 
+            padding=pad, output_padding=scale-1
+        )
 
     def forward(self, x):
-        return self.conv(self.upsample(x))
+        return self.conv_transpose(x)
 
 class StyleTransferNet(nn.Module):
     def __init__(self):
         super().__init__()
-        # Encoder
         self.conv1 = ConvLayer(3, 32, kernel=9, stride=1)
-        self.in1 = nn.InstanceNorm2d(32, affine=True, track_running_stats=False)
+        self.norm1 = AdaIN(32)
 
         self.conv2 = ConvLayer(32, 64, kernel=3, stride=2)
-        self.in2 = nn.InstanceNorm2d(64, affine=True, track_running_stats=False)
+        self.norm2 = AdaIN(64)
 
         self.conv3 = ConvLayer(64, 128, kernel=3, stride=2)
-        self.in3 = nn.InstanceNorm2d(128, affine=True, track_running_stats=False)
+        self.norm3 = AdaIN(128)
 
-        # Residuals
-        self.res1 = ResidualBlock(128)
-        self.res2 = ResidualBlock(128)
-        self.res3 = ResidualBlock(128)
-        self.res4 = ResidualBlock(128)
-        self.res5 = ResidualBlock(128)
+        self.res_blocks = nn.ModuleList([
+            ResidualBlock(128) for _ in range(8)  
+        ])
 
-        # Decoder 
         self.up1 = UpsampleConv(128, 64, kernel=3, scale=2)
-        self.in4 = nn.InstanceNorm2d(64, affine=True, track_running_stats=False)
+        self.norm4 = AdaIN(64)
 
         self.up2 = UpsampleConv(64, 32, kernel=3, scale=2)
-        self.in5 = nn.InstanceNorm2d(32, affine=True, track_running_stats=False)
+        self.norm5 = AdaIN(32)
 
         self.final_conv = ConvLayer(32, 3, kernel=9, stride=1)
 
     def forward(self, x):
-        x = torch.clamp(x, 0.0, 1.0)
-        x = F.relu(self.in1(self.conv1(x)))
-        x = F.relu(self.in2(self.conv2(x)))
-        x = F.relu(self.in3(self.conv3(x)))
+        # Encoder
+        enc1 = F.relu(self.norm1(self.conv1(x)))
+        enc2 = F.relu(self.norm2(self.conv2(enc1)))
+        enc3 = F.relu(self.norm3(self.conv3(enc2)))
 
-        x = self.res1(x); x = self.res2(x); x = self.res3(x); x = self.res4(x); x = self.res5(x)
+        # Residual blocks
+        res = enc3
+        for res_block in self.res_blocks:
+            res = res_block(res)
 
-        x = F.relu(self.in4(self.up1(x)))
-        x = F.relu(self.in5(self.up2(x)))
+        # Decoder with skip connections
+        dec1 = F.relu(self.norm4(self.up1(res))) + enc2  
+        dec2 = F.relu(self.norm5(self.up2(dec1))) + enc1  
 
-        x = self.final_conv(x)
-        x = torch.tanh(x)
-        x = (x+1.0) / 2.0
-        return x
+        # Final output
+        output = self.final_conv(dec2)
+        return torch.tanh(output) 
 
 class VGG16(nn.Module):
     """VGG16 features for perceptual losses"""
@@ -124,6 +144,19 @@ class VGG16(nn.Module):
         
         return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3]
 
+class PerceptualLoss(nn.Module):
+    def __init__(self, vgg):
+        super().__init__()
+        self.vgg = vgg
+        self.weights = [1.0, 1.0, 1.0, 1.0]
+
+    def forward(self, input_features, target_features):
+        loss = 0
+        for i, (inp_feat, tgt_feat, weight) in enumerate(zip(input_features, target_features, self.weights)):
+            # Use L1 loss instead of L2 for better perceptual quality
+            loss += weight * F.l1_loss(inp_feat, tgt_feat)
+        return loss
+
 def gram_matrix(features):
     b, c, h, w = features.size()
     features = features.view(b, c, h * w)
@@ -132,23 +165,28 @@ def gram_matrix(features):
 
 #loss functions
 def style_loss(input_features, target_grams):
-    style_weights = [1.0/4, 1.0/4, 1.0/4, 1.0/4]
+    style_weights = [0.25, 0.25, 0.25, 0.25]
     total_loss = 0.0
+    
     for input_feat, target_gram, weight in zip(input_features, target_grams, style_weights):
-        input_gram = gram_matrix(input_feat)
-
+        b, c, h, w = input_feat.size()
+        features = input_feat.view(b, c, h * w)
+        
+        features = F.normalize(features, p=2, dim=2)
+        gram = torch.bmm(features, features.transpose(1, 2))
+        gram = gram / (c * h * w)  
+        
         if target_gram.dim() == 2:
             target_gram = target_gram.unsqueeze(0)
-        if input_gram.size(0) != target_gram.size(0):
-            target_gram = target_gram.expand(input_gram.size(0), -1, -1)
-
-        total_loss += weight * F.mse_loss(input_gram, target_gram)
-
+        target_gram = target_gram.expand_as(gram)
+        
+        total_loss += weight * F.l1_loss(gram, target_gram)
+    
     return total_loss
 
 
-def content_loss(input_features, target_features):
-    return F.mse_loss(input_features[3], target_features[3]) 
+# def content_loss(input_features, target_features):
+#     return F.mse_loss(input_features[3], target_features[3]) 
 
 def total_variation_loss(img):
     batch_size, channels, height, width = img.size()
