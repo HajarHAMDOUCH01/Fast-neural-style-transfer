@@ -19,7 +19,7 @@ LEARNING_RATE   = 1e-4
 NUM_EPOCHS      = 2
 
 CONTENT_WEIGHT = 1.0
-STYLE_WEIGHT   = 1000
+STYLE_WEIGHT   = 10
 TV_WEIGHT      = 1e-2
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
