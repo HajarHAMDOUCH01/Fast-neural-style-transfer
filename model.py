@@ -132,7 +132,7 @@ class VGG16(nn.Module):
             param.requires_grad = False
             
     def forward(self, x):
-        x = torch.clamp(x, 0.0, 1.0)
+        # x = torch.clamp(x, 0.0, 1.0)
 
         mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device).view(1, 3, 1, 1)
         std = torch.tensor([0.229, 0.224, 0.225]).to(x.device).view(1, 3, 1, 1)
@@ -162,11 +162,14 @@ def gram_matrix(input_feat):
     features = input_feat.view(b, c, h * w)
     
     gram = torch.bmm(features, features.transpose(1, 2))
-    gram = gram / (c * h * w) 
+    gram = gram.div(h * w) 
+
+    return gram
 
 #loss functions
 def style_loss(input_features, target_grams):
-    style_weights = [0.25, 0.25, 0.25, 0.25]
+    style_weights = [1,1,1,1]
+
     total_loss = 0.0
     
     for input_feat, target_gram, weight in zip(input_features, target_grams, style_weights):

@@ -71,24 +71,6 @@ class COCODataset(torch.utils.data.Dataset):
             print(f"Error loading image {img_path}: {e}")
             return self.__getitem__(np.random.randint(0, len(self.images)))
 
-def save_sample_image(model, content_batch, iteration, device):
-    """Save a sample stylized image for visual inspection"""
-    model.eval()
-    with torch.no_grad():
-        # first image from batch
-        sample_content = content_batch[0:1]  
-        sample_content_255 = sample_content * 255.0  
-        
-        stylized = model(sample_content_255)
-        
-        stylized = stylized.clamp(0, 255) / 255.0
-        
-        from torchvision.utils import save_image
-        save_image(stylized, f'/content/sample_output_{iteration}.jpg')
-        save_image(sample_content, f'/content/sample_content_{iteration}.jpg')
-    
-    model.train()
-
 def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     transform = transforms.Compose([
         transforms.Resize((512, 512)),
@@ -96,7 +78,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
         transforms.ToTensor()  
     ])
     
-    dataset = COCODataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
+    dataset = COCODataset(root='/kaggle/input/human-faces/Humans', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
                            num_workers=2, pin_memory=True)
     
@@ -105,6 +87,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     vgg.eval()
     
     style_img = load_style_image('/content/style.jpg')
+    
     with torch.no_grad():
         style_targets = get_style_targets(vgg, style_img)
         style_targets = [t.detach() for t in style_targets]
