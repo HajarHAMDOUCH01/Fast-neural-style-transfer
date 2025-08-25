@@ -19,8 +19,8 @@ LEARNING_RATE   = 1e-4
 NUM_EPOCHS      = 2
 
 CONTENT_WEIGHT = 1.0
-STYLE_WEIGHT   = 10
-TV_WEIGHT      = 1e-2
+STYLE_WEIGHT   = 1000
+TV_WEIGHT      = 1e-4
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
@@ -190,23 +190,22 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
 
 def test_inference(model_path, content_path, output_path):
     """Test the trained model on a single image"""
-    # Loading the model
     style_net = StyleTransferNet().to(device)
     style_net.load_state_dict(torch.load(model_path, map_location=device))
     style_net.eval()
     
-    # Loading the content image
     transform = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((512, 512)),  
         transforms.ToTensor()
     ])
     
     content_img = Image.open(content_path)
     content_tensor = transform(content_img).unsqueeze(0).to(device)
     
-    # Generating stylized image
     with torch.no_grad():
         stylized_tensor = style_net(content_tensor)
+        stylized_tensor = (stylized_tensor + 1.0) / 2.0
+        stylized_tensor = torch.clamp(stylized_tensor, 0, 1)
         
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].cpu())
     stylized_img.save(output_path)

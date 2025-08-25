@@ -2,26 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class AdaIN(nn.Module):
-    def __init__(self, num_features):
-        super().__init__()
-        self.num_features = num_features
-        self.weight = nn.Parameter(torch.ones(num_features))
-        self.bias = nn.Parameter(torch.zeros(num_features))
-    
-    def forward(self, x):
-        b, c, h, w = x.size()
-        x_reshaped = x.view(b, c, -1)
-        mean = x_reshaped.mean(dim=2, keepdim=True).unsqueeze(3)
-        std = x_reshaped.std(dim=2, keepdim=True, unbiased=False).unsqueeze(3)
-
-        normalized = (x - mean) / (std + 1e-8)
-
-        weight = self.weight.view(1, c, 1, 1)
-        bias = self.bias.view(1, c, 1, 1)
-
-        return normalized * weight + bias
-
 class ConvLayer(nn.Module):
     def __init__(self, in_ch, out_ch, kernel, stride=1):
         super().__init__()
@@ -36,14 +16,14 @@ class ResidualBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.conv1 = ConvLayer(channels, channels, kernel=3)
-        self.in1 = AdaIN(channels)
+        self.in1 = nn.InstanceNorm2d(channels, affine=True)
         self.conv2 = ConvLayer(channels, channels, kernel=3)
-        self.in2 = AdaIN(channels)
+        self.in2 = nn.InstanceNorm2d(channels, affine=True)
 
     def forward(self, x):
         y = F.relu(self.in1(self.conv1(x)))
         y = self.in2(self.conv2(y))
-        return F.relu(x + y)
+        return x + y
     
 
 class UpsampleConv(nn.Module):
@@ -62,23 +42,23 @@ class StyleTransferNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = ConvLayer(3, 32, kernel=9, stride=1)
-        self.norm1 = AdaIN(32)
+        self.norm1 = nn.InstanceNorm2d(32, affine = True)
 
         self.conv2 = ConvLayer(32, 64, kernel=3, stride=2)
-        self.norm2 = AdaIN(64)
+        self.norm2 = nn.InstanceNorm2d(64, affine = True)
 
         self.conv3 = ConvLayer(64, 128, kernel=3, stride=2)
-        self.norm3 = AdaIN(128)
+        self.norm3 = nn.InstanceNorm2d(128, affine = True)
 
         self.res_blocks = nn.ModuleList([
             ResidualBlock(128) for _ in range(8)  
         ])
 
         self.up1 = UpsampleConv(128, 64, kernel=3, scale=2)
-        self.norm4 = AdaIN(64)
+        self.norm4 = nn.InstanceNorm2d(64, affine = True)
 
         self.up2 = UpsampleConv(64, 32, kernel=3, scale=2)
-        self.norm5 = AdaIN(32)
+        self.norm5 = nn.InstanceNorm2d(32, affine = True)
 
         self.final_conv = ConvLayer(32, 3, kernel=9, stride=1)
 
@@ -93,9 +73,9 @@ class StyleTransferNet(nn.Module):
         for res_block in self.res_blocks:
             res = res_block(res)
 
-        # Decoder with skip connections
-        dec1 = F.relu(self.norm4(self.up1(res))) + enc2  
-        dec2 = F.relu(self.norm5(self.up2(dec1))) + enc1  
+        # Decoder 
+        dec1 = F.relu(self.norm4(self.up1(res))) 
+        dec2 = F.relu(self.norm5(self.up2(dec1))) 
 
         # Final output
         output = self.final_conv(dec2)
