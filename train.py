@@ -31,7 +31,7 @@ def load_style_image(style_path, size=512):
         transforms.ToTensor()  
     ])
     
-    style_img = Image.open(style_path).convert('RGB')
+    style_img = Image.open(style_path)
     style_img = style_transform(style_img)
     return style_img.unsqueeze(0).to(device)
 
