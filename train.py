@@ -105,7 +105,10 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     vgg.eval()
     
     style_img = load_style_image('/content/style.jpg')
-    style_targets = get_style_targets(vgg, style_img)
+    with torch.no_grad():
+        style_targets = get_style_targets(vgg, style_img)
+        style_targets = [t.detach() for t in style_targets]
+
     
     print("Style target shapes:")
     for i, target in enumerate(style_targets):
@@ -140,11 +143,11 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
             content_batch = content_batch.to(device)
                         
             stylized_batch = style_net(content_batch)
-
             stylized_batch_scaled = (stylized_batch + 1.0) / 2.0
             
             content_features = vgg(content_batch)
-            stylized_features = vgg(stylized_batch)
+
+            stylized_features = vgg(stylized_batch_scaled)
             
             c_loss = PerceptualLoss(vgg)(stylized_features, content_features)
             s_loss = style_loss(stylized_features, style_targets)

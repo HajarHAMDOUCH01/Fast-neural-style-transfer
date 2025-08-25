@@ -20,6 +20,8 @@ class AdaIN(nn.Module):
         weight = self.weight.view(1, c, 1, 1)
         bias = self.bias.view(1, c, 1, 1)
 
+        return normalized * weight + bias
+
 class ConvLayer(nn.Module):
     def __init__(self, in_ch, out_ch, kernel, stride=1):
         super().__init__()
@@ -47,7 +49,6 @@ class ResidualBlock(nn.Module):
 class UpsampleConv(nn.Module):
     def __init__(self, in_ch, out_ch, kernel, scale=2):
         super().__init__()
-        # Use transposed convolution instead of upsample + conv for better quality
         pad = kernel // 2
         self.conv_transpose = nn.ConvTranspose2d(
             in_ch, out_ch, kernel_size=kernel, stride=scale, 
@@ -153,7 +154,6 @@ class PerceptualLoss(nn.Module):
     def forward(self, input_features, target_features):
         loss = 0
         for i, (inp_feat, tgt_feat, weight) in enumerate(zip(input_features, target_features, self.weights)):
-            # Use L1 loss instead of L2 for better perceptual quality
             loss += weight * F.l1_loss(inp_feat, tgt_feat)
         return loss
 
