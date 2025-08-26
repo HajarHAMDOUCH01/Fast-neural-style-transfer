@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from torchvision.datasets import CocoDetection
 from PIL import Image
 import torch.nn.functional as F
 import os

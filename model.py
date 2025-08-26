@@ -29,7 +29,7 @@ class ResidualBlock(nn.Module):
 class UpsampleConv(nn.Module):
     def __init__(self, in_ch, out_ch, kernel, scale=2):
         super().__init__()
-        pad = kernel // 2
+        pad = kernel // 2 # kernel - 1 ? 
         self.conv_transpose = nn.ConvTranspose2d(
             in_ch, out_ch, kernel_size=kernel, stride=scale, 
             padding=pad, output_padding=scale-1
@@ -165,7 +165,7 @@ class PerceptualLoss(nn.Module):
     def forward(self, input_features, target_features):
         loss = 0
         for i, (inp_feat, tgt_feat, weight) in enumerate(zip(input_features, target_features, self.weights)):
-            loss += weight * F.l1_loss(inp_feat, tgt_feat)
+            loss += weight * nn.L1Loss(inp_feat, tgt_feat)
         return loss
 
 def gram_matrix(input_feat):
@@ -191,7 +191,7 @@ def style_loss(input_features, target_grams):
             target_gram = target_gram.unsqueeze(0)
         target_gram = target_gram.expand_as(gram)
         
-        total_loss += weight * F.mse_loss(gram, target_gram)
+        total_loss += weight * nn.L1Loss(gram, target_gram)
     
     return total_loss
 
