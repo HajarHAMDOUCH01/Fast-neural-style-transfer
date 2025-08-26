@@ -21,7 +21,7 @@ CONTENT_WEIGHT = 1.0
 STYLE_WEIGHT   = 15
 TV_WEIGHT      = 1e-4
 
-TRAIN_IMAGE_SHAPE = (512, 512)
+TRAIN_IMAGE_SHAPE = (256, 256)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
@@ -226,7 +226,7 @@ def test_inference(model_path, content_path, output_path):
     style_net.eval()
     
     transform = transforms.Compose([
-        transforms.Resize((512, 512)),  
+        transforms.Resize(TRAIN_IMAGE_SHAPE),  
         transforms.ToTensor()
     ])
     
