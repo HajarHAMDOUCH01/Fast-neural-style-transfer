@@ -12,7 +12,7 @@ import sys
 sys.path.append('/content/real-time-neural-style-transfer')
 from model import StyleTransferNet, VGG16, gram_matrix, PerceptualLoss, style_loss, total_variation_loss
 
-
+TOTAL_STEPS = 40000
 BATCH_SIZE      = 4  
 LEARNING_RATE   = 1e-3
 NUM_EPOCHS      = 2
@@ -74,6 +74,30 @@ class Dataset(torch.utils.data.Dataset):
             print(f"Error loading image {img_path}: {e}")
             return self.__getitem__(np.random.randint(0, len(self.images)))
 
+def load_model_from_checkpoint(checkpoint_path):
+    start_iteration = checkpoint_path['iteartion']
+    style_transfer_net = StyleTransferNet().to(device)
+    model = checkpoint_path['model']
+    stn_stat_dict = torch.load(model, map_location=device)
+    style_transfer_net.load_state_dict(stn_stat_dict)
+    adam_optimizer = optim.Adam(style_transfer_net.parameters(),
+                        lr=LEARNING_RATE,
+                        betas=(0.9, 0.999),
+                        eps=1e-8,
+                        weight_decay=1e-5)  
+    optimizer_checkpoint = checkpoint_path['optimizer']
+    adam_stat_dict = torch.load(optimizer_checkpoint, map_location=device)
+    adam_optimizer.load_state_dict(adam_stat_dict)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        adam_optimizer,
+        T_max=TOTAL_STEPS - start_iteration,
+        eta_min=1e-6
+    )
+    scheduler_checkpoint = checkpoint_path['scheduler']
+    scheduler_stat_dict = torch.load(scheduler_checkpoint, map_location=device)
+    scheduler.load_state_dict(scheduler_stat_dict)
+    return start_iteration
+
 def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     transform = transforms.Compose([
         transforms.Resize(TRAIN_IMAGE_SHAPE),
@@ -85,7 +109,6 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
                            num_workers=2, pin_memory=True)
     
-    style_net = StyleTransferNet().to(device)
     vgg = VGG16().to(device)
     vgg.eval()
     
@@ -98,31 +121,35 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     print("Style target shapes:")
     for i, target in enumerate(style_targets):
         print(f"Layer {i}: {target.shape}")
-
-    start_iteration = 0
-    total_steps = 40000
     
-    optimizer = optim.Adam(style_net.parameters(),
-                        lr=LEARNING_RATE,
-                        betas=(0.9, 0.999),
-                        eps=1e-8,
-                        weight_decay=1e-5)  
+    if resume_from_checkpoint is False:
+        style_net = StyleTransferNet().to(device)
+        start_iteration = 0
+        
+        optimizer = optim.Adam(style_net.parameters(),
+                            lr=LEARNING_RATE,
+                            betas=(0.9, 0.999),
+                            eps=1e-8,
+                            weight_decay=1e-5)  
 
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=total_steps,
-        eta_min=1e-6
-    )
-            
-    print("Starting training...")
-    style_net.train()
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=TOTAL_STEPS,
+            eta_min=1e-6
+        )
+                
+        print("Starting training from first iteration ...")
+        style_net.train()
+        
+        total_iterations = start_iteration
+        running_loss = 0.0
     
-    total_iterations = start_iteration
-    running_loss = 0.0
+    else:
+        start_iteration = load_model_from_checkpoint(checkpoint_path)
 
     for _ in range(NUM_EPOCHS):
         for _, content_batch in enumerate(dataloader):
-            if total_iterations >= total_steps:
+            if total_iterations >= TOTAL_STEPS:
                 break
                 
             content_batch = content_batch.to(device)
@@ -162,7 +189,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
             
             if total_iterations <= 1000 and total_iterations % 50 == 0:
                 avg_loss = running_loss / 50
-                print(f"Iteration [{total_iterations}/{total_steps}] "
+                print(f"Iteration [{total_iterations}/{TOTAL_STEPS}] "
                       f"Avg Loss: {avg_loss:.4f} "
                       f"Content: {c_loss.item():.4f} "
                       f"Style: {s_loss.item():.6f} "
@@ -170,7 +197,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
                 running_loss = 0.0
             elif total_iterations % 100 == 0:
                 avg_loss = running_loss / 100
-                print(f"Iteration [{total_iterations}/{total_steps}] "
+                print(f"Iteration [{total_iterations}/{TOTAL_STEPS}] "
                       f"Avg Loss: {avg_loss:.4f} "
                       f"Content: {c_loss.item():.4f} "
                       f"Style: {s_loss.item():.6f} "
@@ -182,10 +209,10 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
                 torch.save(style_net.state_dict(), 
                           f"/content/drive/MyDrive/style_transfer__{total_iterations}.pth")
                 
-            if total_iterations >= total_steps:
+            if total_iterations >= TOTAL_STEPS:
                 break
         
-        if total_iterations >= total_steps:
+        if total_iterations >= TOTAL_STEPS:
             break
     
     # final model saving
