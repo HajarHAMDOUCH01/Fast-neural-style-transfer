@@ -50,17 +50,32 @@ class StyleTransferNet(nn.Module):
         self.conv3 = ConvLayer(64, 128, kernel=3, stride=2)
         self.norm3 = nn.InstanceNorm2d(128, affine = True)
 
+        self.conv3 = ConvLayer(128, 256, kernel=3, stride=2)
+        self.norm3 = nn.InstanceNorm2d(128, affine = True)
+
+        self.conv3 = ConvLayer(256, 512, kernel=3, stride=2)
+        self.norm3 = nn.InstanceNorm2d(128, affine = True)
+
         self.res_blocks = nn.ModuleList([
-            ResidualBlock(128) for _ in range(5)  
+            ResidualBlock(512) for _ in range(5)  
         ])
 
-        self.up1 = UpsampleConv(128, 64, kernel=3, scale=2)
+        self.up1 = UpsampleConv(512, 256, kernel=3, scale=2)
         self.norm4 = nn.InstanceNorm2d(64, affine = True)
 
-        self.up2 = UpsampleConv(64, 32, kernel=3, scale=2)
-        self.norm5 = nn.InstanceNorm2d(32, affine = True)
+        self.up2 = UpsampleConv(256, 128, kernel=3, scale=2)
+        self.norm5 = nn.InstanceNorm2d(128, affine = True)
 
-        self.final_conv = ConvLayer(32, 3, kernel=9, stride=1)
+        self.up2 = UpsampleConv(128, 64, kernel=3, scale=2)
+        self.norm5 = nn.InstanceNorm2d(256, affine = True)
+
+        self.up2 = UpsampleConv(64, 32, kernel=3, scale=2)
+        self.norm5 = nn.InstanceNorm2d(256, affine = True)
+
+        self.up2 = UpsampleConv(32, 3, kernel=3, scale=2)
+        self.norm5 = nn.InstanceNorm2d(256, affine = True)
+
+        self.final_conv = ConvLayer(3, 3, kernel=9, stride=1)
 
     def forward(self, x):
         # Encoder

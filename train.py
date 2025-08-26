@@ -209,8 +209,7 @@ def test_inference(model_path, content_path, output_path):
     
     with torch.no_grad():
         stylized_tensor = style_net(content_tensor)
-        stylized_tensor = (stylized_tensor + 1.0) / 2.0
-        stylized_tensor = torch.clamp(stylized_tensor, 0, 1)
+        stylized_tensor = ((stylized_tensor + 1.0) / 2.0) * 255
         
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].cpu())
     stylized_img.save(output_path)
