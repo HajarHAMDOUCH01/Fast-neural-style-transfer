@@ -12,7 +12,7 @@ class ConvLayer(nn.Module):
     def forward(self, x):
         return self.conv(self.reflection_pad(x))
 
-class ResidualBlock(nn.Module):
+class ResidualBlock(nn.Module): 
     def __init__(self, channels):
         super().__init__()
         self.conv1 = ConvLayer(channels, channels, kernel=3)
@@ -51,7 +51,7 @@ class StyleTransferNet(nn.Module):
         self.norm3 = nn.InstanceNorm2d(128, affine = True)
 
         self.res_blocks = nn.ModuleList([
-            ResidualBlock(128) for _ in range(8)  
+            ResidualBlock(128) for _ in range(5)  
         ])
 
         self.up1 = UpsampleConv(128, 64, kernel=3, scale=2)
@@ -80,6 +80,19 @@ class StyleTransferNet(nn.Module):
         # Final output
         output = self.final_conv(dec2)
         return torch.tanh(output) 
+    
+
+VGG16_layers = (
+    'conv1_1', 'relu1_1', 'conv1_2', 'relu1_2', 'pool1',
+
+    'conv2_1', 'relu2_1', 'conv2_2', 'relu2_2', 'pool2',
+
+    'conv3_1', 'relu3_1', 'conv3_2', 'relu3_2', 'conv3_3', 'relu3_3', 'pool3',
+
+    'conv4_1', 'relu4_1', 'conv4_2', 'relu4_2', 'conv4_3','relu4_3', 'pool4',
+
+    'conv5_1', 'relu5_1', 'conv5_2', 'relu5_2', 'conv5_3', 'relu5_3', 'pool5'
+)
 
 class VGG16(nn.Module):
     """VGG16 features for perceptual losses"""
@@ -95,41 +108,44 @@ class VGG16(nn.Module):
         self.slice3 = nn.Sequential()
         self.slice4 = nn.Sequential()
         
-        # relu1_2
-        for x in range(4):
+        # relu1_1
+        for x in range(1):
             self.slice1.add_module(str(x), vgg_features[x])
-        # relu2_2  
-        for x in range(4, 9):
+        # relu2_1
+        for x in range(1,6):
             self.slice2.add_module(str(x), vgg_features[x])
-        # relu3_3
-        for x in range(9, 16):
+        # relu3_1
+        for x in range(6, 11):
             self.slice3.add_module(str(x), vgg_features[x])
-        # relu4_3
-        for x in range(16, 23):
+        # relu4_1
+        for x in range(11, 18):
+            self.slice4.add_module(str(x), vgg_features[x])
+        # relu5_1
+        for x in range(18, 25):
             self.slice4.add_module(str(x), vgg_features[x])
             
         for param in self.parameters():
             param.requires_grad = False
             
     def forward(self, x):
-        # x = torch.clamp(x, 0.0, 1.0)
 
         mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device).view(1, 3, 1, 1)
         std = torch.tensor([0.229, 0.224, 0.225]).to(x.device).view(1, 3, 1, 1)
         x = (x - mean) / std
         
-        h_relu1_2 = self.slice1(x)
-        h_relu2_2 = self.slice2(h_relu1_2)
-        h_relu3_3 = self.slice3(h_relu2_2)
-        h_relu4_3 = self.slice4(h_relu3_3)
+        h_relu1_1 = self.slice1(x)
+        h_relu2_1 = self.slice2(h_relu1_1)
+        h_relu3_1 = self.slice3(h_relu2_1)
+        h_relu4_1 = self.slice4(h_relu3_1)
+        h_relu5_1 = self.slice4(h_relu4_1)
         
-        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3]
+        return [h_relu1_1, h_relu2_1, h_relu3_1, h_relu4_1, h_relu5_1]
 
 class PerceptualLoss(nn.Module):
     def __init__(self, vgg):
         super().__init__()
         self.vgg = vgg
-        self.weights = [1.0, 1.0, 1.0, 1.0]
+        self.weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
     def forward(self, input_features, target_features):
         loss = 0
@@ -139,12 +155,13 @@ class PerceptualLoss(nn.Module):
 
 def gram_matrix(input_feat):
     b, c, h, w = input_feat.size()
+    n = input_feat.numel() // c
     features = input_feat.view(b, c, h * w)
     
     gram = torch.bmm(features, features.transpose(1, 2))
-    gram = gram.div(h * w) 
+    gram = gram.div(c * n) 
 
-    return gram
+    return gram # supposed to return a gram matrix with batch dim ! -> check
 
 #loss functions
 def style_loss(input_features, target_grams):

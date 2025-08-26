@@ -15,19 +15,21 @@ from model import StyleTransferNet, VGG16, gram_matrix, PerceptualLoss, style_lo
 
 
 BATCH_SIZE      = 4  
-LEARNING_RATE   = 1e-4
+LEARNING_RATE   = 1e-3
 NUM_EPOCHS      = 2
 
 CONTENT_WEIGHT = 1.0
-STYLE_WEIGHT   = 1000
+STYLE_WEIGHT   = 15
 TV_WEIGHT      = 1e-4
+
+TRAIN_IMAGE_SHAPE = (512, 512)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-def load_style_image(style_path, size=512):
+def load_style_image(style_path, size=TRAIN_IMAGE_SHAPE):
     style_transform = transforms.Compose([
-        transforms.Resize((size, size)),
+        transforms.Resize(size),
         transforms.ToTensor()  
     ])
     
@@ -36,16 +38,18 @@ def load_style_image(style_path, size=512):
     return style_img.unsqueeze(0).to(device)
 
 def get_style_targets(vgg, style_img):
+    vgg.eval()
     with torch.no_grad():
-        style_features = vgg(style_img)
+        style_features = vgg(style_img) 
+        print("style_features shape : ", style_features.shape)
         style_targets = []
         
         for feat in style_features:
-            gram = gram_matrix(feat)
-            style_targets.append(gram.squeeze(0))
+            gram = gram_matrix(feat) 
+            style_targets.append(gram.squeeze(0)) # removing batch dim ! -> check
     return style_targets
 
-class COCODataset(torch.utils.data.Dataset): 
+class Dataset(torch.utils.data.Dataset): 
     def __init__(self, root, transform=None):
         self.root = root
         self.transform = transform
@@ -63,9 +67,9 @@ class COCODataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         img_path = self.images[idx]
         try:
-            image = Image.open(img_path).convert('RGB')
+            image = Image.open(img_path)
             if self.transform:
-                image = self.transform(image)
+                image = self.transform(image) #!!
             return image
         except Exception as e:
             print(f"Error loading image {img_path}: {e}")
@@ -73,12 +77,12 @@ class COCODataset(torch.utils.data.Dataset):
 
 def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     transform = transforms.Compose([
-        transforms.Resize((512, 512)),
-        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.Resize(TRAIN_IMAGE_SHAPE),
+        transforms.RandomHorizontalFlip(p=0.2),
         transforms.ToTensor()  
     ])
     
-    dataset = COCODataset(root='/kaggle/input/human-faces/Humans', transform=transform)
+    dataset = Dataset(root='/kaggle/input/human-faces/Humans', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
                            num_workers=2, pin_memory=True)
     
@@ -89,10 +93,9 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     style_img = load_style_image('/content/style.jpg')
     
     with torch.no_grad():
-        style_targets = get_style_targets(vgg, style_img)
+        style_targets = get_style_targets(vgg, style_img) # style targets are without batch dim -> check
         style_targets = [t.detach() for t in style_targets]
 
-    
     print("Style target shapes:")
     for i, target in enumerate(style_targets):
         print(f"Layer {i}: {target.shape}")
@@ -118,17 +121,19 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
     total_iterations = start_iteration
     running_loss = 0.0
 
-    for epoch in range(NUM_EPOCHS):
-        for batch_idx, content_batch in enumerate(dataloader):
+    for _ in range(NUM_EPOCHS):
+        for _, content_batch in enumerate(dataloader):
             if total_iterations >= total_steps:
                 break
                 
             content_batch = content_batch.to(device)
+            content_batch_scaled = ( content_batch + 1.0) / 2.0 
                         
             stylized_batch = style_net(content_batch)
-            stylized_batch_scaled = (stylized_batch + 1.0) / 2.0
+            stylized_batch_scaled = (stylized_batch + 1.0) / 2.0 
+
             
-            content_features = vgg(content_batch)
+            content_features = vgg(content_batch_scaled)
 
             stylized_features = vgg(stylized_batch_scaled)
             
