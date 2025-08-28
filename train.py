@@ -40,7 +40,7 @@ def get_style_targets(vgg, style_img):
     vgg.eval()
     with torch.no_grad():
         style_features = vgg(style_img) 
-        print("style_features shape : ", style_features.shape)
+        print("style_features shape : ", style_features[0].shape)
         style_targets = []
         
         for feat in style_features:
@@ -105,7 +105,7 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
         transforms.ToTensor()  
     ])
     
-    dataset = Dataset(root='/kaggle/input/human-faces/Humans', transform=transform)
+    dataset = Dataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
                            num_workers=2, pin_memory=True)
     
@@ -118,9 +118,9 @@ def train_style_transfer(resume_from_checkpoint=False, checkpoint_path=None):
         style_targets = get_style_targets(vgg, style_img) # style targets are without batch dim -> check
         style_targets = [t.detach() for t in style_targets]
 
-    print("Style target shapes:")
-    for i, target in enumerate(style_targets):
-        print(f"Layer {i}: {target.shape}")
+    # print("Style target shapes:")
+    # for i, target in enumerate(style_targets):
+    #     print(f"Layer {i}: {target.shape}")
     
     if resume_from_checkpoint is False:
         style_net = StyleTransferNet().to(device)
