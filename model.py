@@ -64,7 +64,10 @@ class StyleTransferNet(nn.Module):
         self.norm6 = nn.InstanceNorm2d(64, affine=True)      
 
         self.up3 = UpsampleConv(64, 32, kernel=3, scale=2)
-        self.norm7 = nn.InstanceNorm2d(32, affine=True)      
+        self.norm7 = nn.InstanceNorm2d(32, affine=True)    
+
+        self.up4 = UpsampleConv(32, 32, kernel=3, scale=2)
+        self.norm8 = nn.InstanceNorm2d(32, affine=True)   
 
         # Final output layer
         self.final_conv = ConvLayer(32, 3, kernel=9, stride=1)
@@ -85,9 +88,11 @@ class StyleTransferNet(nn.Module):
         dec1 = F.relu(self.norm5(self.up1(res))) 
         dec2 = F.relu(self.norm6(self.up2(dec1))) 
         dec3 = F.relu(self.norm7(self.up3(dec2)))
+        dec4 = F.relu(self.norm8(self.up4(dec3)))
 
         # Final output
-        output = self.final_conv(dec3)
+        output = self.final_conv(dec4)
+        # print("........", output.shape)
         return torch.tanh(output) 
     
 
@@ -154,18 +159,17 @@ class VGG16(nn.Module):
 
 def gram_matrix(input_feat):
     b, c, h, w = input_feat.size()
-    n = input_feat.numel() // c
     features = input_feat.view(b, c, h * w)
     
     gram = torch.bmm(features, features.transpose(1, 2))
-    gram = gram.div(c * n) 
+    gram = gram.div(h*w) 
 
     return gram # supposed to return a gram matrix with batch dim ! -> check
 
 #loss functions
 def style_loss(input_features, target_grams):
-    style_indices = [0, 1, 2, 3, 5]  # Skip relu4_2 (index 4) - it's for content
-    style_weights = [1e3/n**2 for n in [64, 128, 256, 512, 512]]  
+    style_indices = [0, 1, 2, 3, 5]  
+    style_weights = [1.0, 1.0, 1.0, 1.0, 1.0]  
     
     total_loss = 0.0
     
@@ -177,9 +181,11 @@ def style_loss(input_features, target_grams):
         
         if target_gram.dim() == 2:
             target_gram = target_gram.unsqueeze(0)
-        target_gram = target_gram.expand_as(gram)
+        if gram.size(0) != target_gram.size(0):
+            target_gram = target_gram.expand_as(gram)
         
-        total_loss += weight * F.mse_loss(gram, target_gram)
+        loss = F.mse_loss(gram, target_gram)
+        total_loss += weight * loss
     
     return total_loss
 
