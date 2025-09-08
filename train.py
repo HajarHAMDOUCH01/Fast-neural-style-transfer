@@ -10,39 +10,13 @@ import numpy as np
 
 import sys
 sys.path.append('/content/real-time-neural-style-transfer')
-from model import StyleTransferNet, VGG16, gram_matrix, style_loss, total_variation_loss, content_loss
-
-TOTAL_STEPS = 40000
-BATCH_SIZE      = 4  
-LEARNING_RATE   = 1e-2
-NUM_EPOCHS      = 2
-
-CONTENT_WEIGHT = 1.0
-STYLE_WEIGHT   = 3
-TV_WEIGHT      = 1e-4
-
-TRAIN_IMAGE_SHAPE = (256, 256)
+from models.model import StyleTransferNet, VGG19, gram_matrix, style_loss, total_variation_loss, content_loss
+from config import training_config, loss_weights_config
+from utils.image_utils import normalize_batch, denormalize_batch, load_style_image
+from data.dataset import Dataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
-
-def normalize_batch(batch):
-    """Ensure batch is in [0,1] range for VGG"""
-    return torch.clamp(batch, 0.0, 1.0)
-
-def denormalize_batch(batch):
-    """Convert from [-1,1] to [0,1] range"""
-    return (batch + 1.0) / 2.0  
-
-def load_style_image(style_path, size=TRAIN_IMAGE_SHAPE):
-    style_transform = transforms.Compose([
-        transforms.Resize(size),
-        transforms.ToTensor()  
-    ])
-    
-    style_img = Image.open(style_path)
-    style_img = style_transform(style_img)
-    return style_img.unsqueeze(0).to(device)
 
 def get_style_targets(vgg, style_img):
     vgg.eval()
@@ -54,33 +28,8 @@ def get_style_targets(vgg, style_img):
         for feat in style_features:
             gram = gram_matrix(feat) 
             style_targets.append(gram.squeeze(0)) # removing batch dim ! -> check
-    return style_targets
-
-class Dataset(torch.utils.data.Dataset): 
-    def __init__(self, root, transform=None):
-        self.root = root
-        self.transform = transform
-        self.images = []
-        for subdir, dirs, files in os.walk(root):
-            for file in files:
-                if file.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    self.images.append(os.path.join(subdir, file))
-        
-        print(f"Found {len(self.images)} images in dataset")
-    
-    def __len__(self):
-        return len(self.images)
-    
-    def __getitem__(self, idx):
-        img_path = self.images[idx]
-        try:
-            image = Image.open(img_path).convert("RGB")
-            if self.transform:
-                image = self.transform(image) #!!
-            return image
-        except Exception as e:
-            print(f"Error loading image {img_path}: {e}")
-            return self.__getitem__(np.random.randint(0, len(self.images)))
+    print("image style shape after vgg", style_targets.size)
+    return style_targets 
 
 def load_model_from_checkpoint(checkpoint_path):
     start_iteration = checkpoint_path['iteartion']
@@ -89,7 +38,7 @@ def load_model_from_checkpoint(checkpoint_path):
     stn_stat_dict = torch.load(model, map_location=device)
     style_transfer_net.load_state_dict(stn_stat_dict)
     adam_optimizer = optim.Adam(style_transfer_net.parameters(),
-                        lr=LEARNING_RATE,
+                        lr=training_config['LEARNING_RATE'],
                         betas=(0.9, 0.999),
                         eps=1e-8,
                         weight_decay=1e-5)  
@@ -98,7 +47,7 @@ def load_model_from_checkpoint(checkpoint_path):
     adam_optimizer.load_state_dict(adam_stat_dict)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         adam_optimizer,
-        T_max=TOTAL_STEPS - start_iteration,
+        T_max=training_config['TOTAL_STEPS'] - start_iteration,
         eta_min=1e-6
     )
     scheduler_checkpoint = checkpoint_path['scheduler']
@@ -108,43 +57,43 @@ def load_model_from_checkpoint(checkpoint_path):
 
 def train_style_transfer():
     transform = transforms.Compose([
-        transforms.Resize(TRAIN_IMAGE_SHAPE),
+        transforms.Resize(training_config['TRAIN_IMAGE_SHAPE']),
         transforms.RandomHorizontalFlip(p=0.2),
-        transforms.ToTensor(),  
-        transforms.Lambda(lambda x: x * 2.0 - 1.0)  # Convert to [-1,1] for model input
+        transforms.ToTensor(), # -> [0,1]
+        transforms.Lambda(lambda x: x * 2.0 - 1.0) # -> [-1,1]
     ])
     
     dataset = Dataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
-    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, 
+    dataloader = DataLoader(dataset, batch_size=training_config['BATCH_SIZE'], shuffle=True, 
                            num_workers=2, pin_memory=True)
     
-    vgg = VGG16().to(device)
+    vgg = VGG19().to(device)
     vgg.eval()
     
     # Load and process style image consistently
     style_transform = transforms.Compose([
-        transforms.Resize(TRAIN_IMAGE_SHAPE),
-        transforms.ToTensor()  # Keep in [0,1] for VGG
+        transforms.Resize(training_config['TRAIN_IMAGE_SHAPE']),
+        transforms.ToTensor() # -> [0,1]
     ])
     
-    style_img = Image.open('/content/style.jpg')
+    style_img = Image.open('/content/style.jpg') # -> [0,255]
     style_img = style_transform(style_img).unsqueeze(0).to(device)
     
     with torch.no_grad():
-        style_targets = get_style_targets(vgg, style_img)
+        style_targets = get_style_targets(vgg, style_img) # without batch dim 
         style_targets = [t.detach() for t in style_targets]
     
     style_net = StyleTransferNet().to(device)
     
     optimizer = optim.Adam(style_net.parameters(),
-                          lr=LEARNING_RATE,
+                          lr=training_config['LEARNING_RATE'],
                           betas=(0.9, 0.999),
                           eps=1e-8,
                           weight_decay=1e-5)
 
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
-        T_max=TOTAL_STEPS,
+        T_max=training_config['TOTAL_STEPS'],
         eta_min=1e-6
     )
     
@@ -152,9 +101,9 @@ def train_style_transfer():
     total_iterations = 0
     running_loss = 0.0
     
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(training_config['NUM_EPOCHS']):
         for batch_idx, content_batch in enumerate(dataloader):
-            if total_iterations >= TOTAL_STEPS:
+            if total_iterations >= training_config['TOTAL_STEPS']:
                 break
                 
             content_batch = content_batch.to(device)  # [-1,1] range
@@ -166,10 +115,6 @@ def train_style_transfer():
             content_batch_vgg = denormalize_batch(content_batch)
             stylized_batch_vgg = denormalize_batch(stylized_batch)
             
-            # Ensure values are in valid range
-            content_batch_vgg = normalize_batch(content_batch_vgg)
-            stylized_batch_vgg = normalize_batch(stylized_batch_vgg)
-            
             # Extract features
             content_features = vgg(content_batch_vgg)
             stylized_features = vgg(stylized_batch_vgg)
@@ -179,9 +124,9 @@ def train_style_transfer():
             s_loss = style_loss(stylized_features, style_targets)
             tv_loss = total_variation_loss(stylized_batch)
             
-            total_loss = (CONTENT_WEIGHT * c_loss + 
-                         STYLE_WEIGHT * s_loss + 
-                         TV_WEIGHT * tv_loss)
+            total_loss = (loss_weights_config['CONTENT_WEIGHT'] * c_loss + 
+                         loss_weights_config['STYLE_WEIGHT'] * s_loss + 
+                         loss_weights_config['TV_WEIGHT'] * tv_loss)
             
             # Check for NaN
             if torch.isnan(total_loss) or torch.isinf(total_loss):
@@ -204,7 +149,7 @@ def train_style_transfer():
             # Logging with better frequency
             if total_iterations % 100 == 0:
                 avg_loss = running_loss / 100
-                print(f"Iteration [{total_iterations}/{TOTAL_STEPS}] "
+                print(f"Iteration [{total_iterations}/{training_config['TOTAL_STEPS']}] "
                       f"Total: {avg_loss:.4f} "
                       f"Content: {c_loss.item():.4f} "
                       f"Style: {s_loss.item():.4f} "
@@ -230,46 +175,18 @@ def train_style_transfer():
                     'loss': total_loss.item()
                 }, f"/content/drive/MyDrive/checkpoint_{total_iterations}.pth")
                 
-            if total_iterations >= TOTAL_STEPS:
+            if total_iterations >= training_config['TOTAL_STEPS']:
                 break
         
-        if total_iterations >= TOTAL_STEPS:
+        if total_iterations >= training_config['TOTAL_STEPS']:
             break
     
     # Save final model
     torch.save(style_net.state_dict(), '/content/drive/MyDrive/style_transfer_final.pth')
     print("Training completed!")
 
-def test_inference(model_path, content_path, output_path):
-    style_net = StyleTransferNet().to(device)
-    style_net.load_state_dict(torch.load(model_path, map_location=device))
-    style_net.eval()
-    
-    transform = transforms.Compose([
-        transforms.Resize(TRAIN_IMAGE_SHAPE),
-        transforms.ToTensor(),  
-        transforms.Lambda(lambda x: x * 2.0 - 1.0)  
-    ])
-    
-    content_img = Image.open(content_path)
-    content_tensor = transform(content_img).unsqueeze(0).to(device)
-    
-    with torch.no_grad():
-        stylized_tensor = style_net(content_tensor)  
-        stylized_tensor = denormalize_batch(stylized_tensor)
-        stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
-        
-    stylized_img = transforms.ToPILImage()(stylized_tensor[0].cpu())
-    stylized_img.save(output_path)
-    print(f"Stylized image saved to {output_path}")
-
 
 if __name__ == '__main__':
 
     # if training from the start : 
     train_style_transfer()
-
-    # if training from a checkpoint : 
-    # train_style_transfer(resume_from_checkpoint=True, checkpoint_path='/content/drive/MyDrive/style_transfer_checkpoint_10000.pth')
-
-    # test_inference('style_transfer_final.pth', 'test_content.jpg', 'stylized_output.jpg')
