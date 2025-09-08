@@ -31,20 +31,22 @@ def style_loss(input_features, target_grams):
         if gram.size(0) != target_gram.size(0):
             target_gram = target_gram.expand_as(gram)
         
-        loss = F.mse_loss(gram, target_gram) 
+        loss = (gram - target_gram) # of size b, c, h*w
         # gets the width and height of loss
-        loss_w_h = loss.size[:2]
+        channels = loss.size()[1]
+        h_w = loss.size()[2]
         # Frobenius Normalization
-        normalized_loss = torch.linalg.norm(loss, ord='for', dim=loss_w_h) 
-        total_loss +=  normalized_loss # square Frobenius Normalization
+        normalized_loss = torch.linalg.norm(loss, ord='fro', dim=(1, 2)) 
+        normalized_layer_loss = normalized_loss.mean()
+        total_loss +=  normalized_layer_loss # square Frobenius Normalization
     
     return total_loss
 
 def content_loss(input_features, target_features):
     # relu4_2 (index 4) as content layer
-    loss = F.mse_loss(input_features[4], target_features[4]) 
+    loss = F.mse_loss(input_features[4], target_features[4], reduction='sum') 
     # loss should be normalized by the c*h*w of the size of the content layer of the vgg19 
-    content_layer_size = input_features.size.to(torch.float32)
+    content_layer_size = input_features[4].numel()
     normalized_loss = loss / content_layer_size
     return normalized_loss
 

@@ -10,9 +10,11 @@ import numpy as np
 
 import sys
 sys.path.append('/content/real-time-neural-style-transfer')
-from models.model import StyleTransferNet, VGG19, gram_matrix, style_loss, total_variation_loss, content_loss
-from config import training_config, loss_weights_config
-from utils.image_utils import normalize_batch, denormalize_batch, load_style_image
+from losses.losses import gram_matrix, style_loss, total_variation_loss, content_loss
+from models.model import StyleTransferNet
+from models.vgg19_net import VGG19
+from config import training_config, loss_weights_config, vgg_loss_layers
+from utils.image_utils import normalize_batch, denormalize_batch
 from data.dataset import Dataset
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -28,7 +30,7 @@ def get_style_targets(vgg, style_img):
         for feat in style_features:
             gram = gram_matrix(feat) 
             style_targets.append(gram.squeeze(0)) # removing batch dim ! -> check
-    print("image style shape after vgg", style_targets.size)
+    print("image style shape after vgg", style_targets[0].size)
     return style_targets 
 
 def load_model_from_checkpoint(checkpoint_path):
@@ -64,7 +66,7 @@ def train_style_transfer():
     ])
     
     dataset = Dataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
-    dataloader = DataLoader(dataset, batch_size=training_config['BATCH_SIZE'], shuffle=True, 
+    dataloader = DataLoader(dataset, batch_size=training_config["BATCH_SIZE"], shuffle=True, 
                            num_workers=2, pin_memory=True)
     
     vgg = VGG19().to(device)
@@ -76,7 +78,7 @@ def train_style_transfer():
         transforms.ToTensor() # -> [0,1]
     ])
     
-    style_img = Image.open('/content/style.jpg') # -> [0,255]
+    style_img = Image.open('/content/style.jpeg') # -> [0,255]
     style_img = style_transform(style_img).unsqueeze(0).to(device)
     
     with torch.no_grad():
