@@ -80,5 +80,5 @@ class StyleTransferNet(nn.Module):
 
         # Final output
         output = self.final_conv(dec2)
-        # print("........", output.shape)
-        return torch.tanh(output) 
+        print("........", output.shape)
+        return output

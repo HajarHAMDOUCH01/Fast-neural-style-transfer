@@ -10,7 +10,7 @@ import numpy as np
 
 import sys
 sys.path.append('/content/real-time-neural-style-transfer')
-from models.model import StyleTransferNet, gram_matrix, style_loss, total_variation_loss, content_loss
+from models.model import StyleTransferNet
 from models.vgg19_net import VGG19
 from config import training_config, loss_weights_config, vgg_loss_layers
 

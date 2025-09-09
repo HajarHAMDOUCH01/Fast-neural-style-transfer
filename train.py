@@ -58,28 +58,17 @@ def load_model_from_checkpoint(checkpoint_path):
     return start_iteration
 
 def train_style_transfer():
-    transform = transforms.Compose([
-        transforms.Resize(training_config['TRAIN_IMAGE_SHAPE']),
-        transforms.RandomHorizontalFlip(p=0.2),
-        transforms.ToTensor(), # -> [0,1]
-        transforms.Lambda(lambda x: x * 2.0 - 1.0) # -> [-1,1]
-    ])
-    
+    vgg = VGG19().to(device)
+    vgg.eval()
+
     dataset = Dataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
     dataloader = DataLoader(dataset, batch_size=training_config["BATCH_SIZE"], shuffle=True, 
                            num_workers=2, pin_memory=True)
+
+    transform = vgg.vgg_model_weights.IMAGENET1K_V1.transforms
     
-    vgg = VGG19().to(device)
-    vgg.eval()
-    
-    # Load and process style image consistently
-    style_transform = transforms.Compose([
-        transforms.Resize(training_config['TRAIN_IMAGE_SHAPE']),
-        transforms.ToTensor() # -> [0,1]
-    ])
-    
-    style_img = Image.open('/content/style.jpeg') # -> [0,255]
-    style_img = style_transform(style_img).unsqueeze(0).to(device)
+    style_img = Image.open('/content/style.jpeg') 
+    style_img = transform(style_img).unsqueeze(0).to(device)
     
     with torch.no_grad():
         style_targets = get_style_targets(vgg, style_img) # without batch dim 
@@ -108,18 +97,18 @@ def train_style_transfer():
             if total_iterations >= training_config['TOTAL_STEPS']:
                 break
                 
-            content_batch = content_batch.to(device)  # [-1,1] range
+            content_batch = content_batch.to(device)  #[0,1] and norm and std of vgg19
             
             # Generate stylized output
-            stylized_batch = style_net(content_batch)  # [-1,1] range
+            stylized_batch = style_net(content_batch)  
             
             # Convert to [0,1] for VGG processing
-            content_batch_vgg = denormalize_batch(content_batch)
-            stylized_batch_vgg = denormalize_batch(stylized_batch)
+            # content_batch_vgg = denormalize_batch(content_batch)
+            # stylized_batch_vgg = denormalize_batch(stylized_batch)
             
             # Extract features
-            content_features = vgg(content_batch_vgg)
-            stylized_features = vgg(stylized_batch_vgg)
+            content_features = vgg(content_batch)
+            stylized_features = vgg(stylized_batch) 
             
             # Calculate losses
             c_loss = content_loss(stylized_features, content_features)

@@ -23,8 +23,10 @@ class VGG19(nn.Module):
     def __init__(self):
         super(VGG19, self).__init__()
 
-        from torchvision.models import vgg16, VGG16_Weights
-        vgg_features = vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
+        from torchvision.models import vgg19, VGG19_Weights
+        vgg_features = vgg19(weights='DEFAULT').features
+
+        self.vgg_model_weights = VGG19_Weights
         
         # Extraction of specific layers for content and style losses
         self.slice1 = nn.Sequential()
@@ -57,10 +59,7 @@ class VGG19(nn.Module):
             param.requires_grad = False
             
     def forward(self, x):
-        # Normalize input for VGG (ImageNet normalization)
-        mean = torch.tensor([0.485, 0.456, 0.406]).to(x.device).view(1, 3, 1, 1)
-        std = torch.tensor([0.229, 0.224, 0.225]).to(x.device).view(1, 3, 1, 1)
-        x = (x - mean) / std
+        # x : image 
         
         h_relu1_1 = self.slice1(x)
         h_relu2_1 = self.slice2(h_relu1_1)
