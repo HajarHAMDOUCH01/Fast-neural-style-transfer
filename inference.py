@@ -27,27 +27,28 @@ def denormalize_batch(batch):
 
 
 def test_inference(model_path, content_path, output_path):
+    vgg = VGG19().to(device)
+    vgg.eval()
+
+    vgg_weights = vgg.vgg_model_weights.IMAGENET1K_V1
+    transform = vgg_weights.transforms()
+
     style_net = StyleTransferNet().to(device)
     style_net.load_state_dict(model_path)
     style_net.eval()
     
-    transform = transforms.Compose([
-        transforms.Resize(training_config['TRAIN_IMAGE_SHAPE']),
-        transforms.ToTensor(), # -> [0,1]
-        transforms.Lambda(lambda x: x * 2.0 - 1.0) # -> [-1,1]
-    ])
-    
-    content_img = Image.open(content_path)
-    content_tensor = transform(content_img).unsqueeze(0).to(device)
-    
-    with torch.no_grad():
-        stylized_tensor = style_net(content_tensor)  
-        stylized_tensor = denormalize_batch(stylized_tensor)
-        stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
-        
+    image = Image.open("/content/dancing (1).jpg").convert("RGB")
+    content_image = transform(image).unsqueeze(0).to(device)
+    # print("image tensor shape : ", content_image[0].shape)
+    # print("image tensor to check values : ", content_image)
+    stylized_tensor = style_net(content_image)
+    # print("output image tensor to check values : ", sample_image)
+    stylized_tensor = denormalize_batch(stylized_tensor)
+    stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
+
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].device())
-    stylized_img.save(output_path)
-    print(f"Stylized image saved to {output_path}")
+    stylized_img.save("/content/output.jpg")
+    print(f"Stylized image saved to {"/content/output.jpg"}")
 
 if __name__ == "__main__":
     checkpoint_path = ""
