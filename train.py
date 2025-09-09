@@ -166,8 +166,8 @@ def train_style_transfer():
                 stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
         
                 stylized_img = transforms.ToPILImage()(stylized_tensor[0].device())
-                stylized_img.save("/content/")
-                print(f"Stylized image saved to {"/content/"}")
+                stylized_img.save("/content/output.jpg")
+                print(f"Stylized image saved to {"/content/output.jpg"}")
 
             # Save checkpoints
             if total_iterations % 5000 == 0 and total_iterations > 0:

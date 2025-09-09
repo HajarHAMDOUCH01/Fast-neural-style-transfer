@@ -41,8 +41,9 @@ def test_inference(model_path, content_path, output_path):
     content_image = transform(image).unsqueeze(0).to(device)
     # print("image tensor shape : ", content_image[0].shape)
     # print("image tensor to check values : ", content_image)
-    stylized_tensor = style_net(content_image)
-    # print("output image tensor to check values : ", sample_image)
+    with torch.no_grad():
+        stylized_tensor = style_net(content_image)
+        # print("output image tensor to check values : ", sample_image)
     stylized_tensor = denormalize_batch(stylized_tensor)
     stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
 
