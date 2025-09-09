@@ -2,7 +2,7 @@
 training_config = {
     "TOTAL_STEPS" : 40000,
     "BATCH_SIZE"     : 4  ,
-    "LEARNING_RATE"  : 1e-2,
+    "LEARNING_RATE"  : 1e-3,
     "NUM_EPOCHS"     : 2,
     "TRAIN_IMAGE_SHAPE" : (256, 256),
 }

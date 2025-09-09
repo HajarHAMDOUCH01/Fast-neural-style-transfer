@@ -10,18 +10,9 @@ import numpy as np
 
 import sys
 sys.path.append('/content/real-time-neural-style-transfer')
-from models.model import StyleTransferNet, VGG16, gram_matrix, style_loss, total_variation_loss, content_loss
-
-TOTAL_STEPS = 40000
-BATCH_SIZE      = 4  
-LEARNING_RATE   = 1e-2
-NUM_EPOCHS      = 2
-
-CONTENT_WEIGHT = 1.0
-STYLE_WEIGHT   = 3
-TV_WEIGHT      = 1e-4
-
-TRAIN_IMAGE_SHAPE = (256, 256)
+from models.model import StyleTransferNet, gram_matrix, style_loss, total_variation_loss, content_loss
+from models.vgg19_net import VGG19
+from config import training_config, loss_weights_config, vgg_loss_layers
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
@@ -41,9 +32,9 @@ def test_inference(model_path, content_path, output_path):
     style_net.eval()
     
     transform = transforms.Compose([
-        transforms.Resize(TRAIN_IMAGE_SHAPE),
-        transforms.ToTensor(),  
-        transforms.Lambda(lambda x: x * 2.0 - 1.0)  
+        transforms.Resize(training_config['TRAIN_IMAGE_SHAPE']),
+        transforms.ToTensor(), # -> [0,1]
+        transforms.Lambda(lambda x: x * 2.0 - 1.0) # -> [-1,1]
     ])
     
     content_img = Image.open(content_path)
@@ -54,6 +45,9 @@ def test_inference(model_path, content_path, output_path):
         stylized_tensor = denormalize_batch(stylized_tensor)
         stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
         
-    stylized_img = transforms.ToPILImage()(stylized_tensor[0].cpu())
+    stylized_img = transforms.ToPILImage()(stylized_tensor[0].device())
     stylized_img.save(output_path)
     print(f"Stylized image saved to {output_path}")
+
+if __name__ == "__main__":
+    test_inference("model", "content_img", "output")

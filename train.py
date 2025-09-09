@@ -158,14 +158,6 @@ def train_style_transfer():
                       f"TV: {tv_loss.item():.6f} "
                       f"LR: {scheduler.get_last_lr()[0]:.2e}")
                 running_loss = 0.0
-                
-                # Save sample output for debugging
-                if total_iterations % 1000 == 0:
-                    with torch.no_grad():
-                        sample_output = denormalize_batch(stylized_batch[0:1])
-                        sample_output = torch.clamp(sample_output * 255, 0, 255)
-                        sample_img = transforms.ToPILImage()(sample_output[0].cpu())
-                        sample_img.save(f"/content/sample_{total_iterations}.jpg")
             
             # Save checkpoints
             if total_iterations % 5000 == 0 and total_iterations > 0:
