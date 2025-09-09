@@ -16,6 +16,7 @@ from models.vgg19_net import VGG19
 from config import training_config, loss_weights_config, vgg_loss_layers
 from utils.image_utils import normalize_batch, denormalize_batch
 from data.dataset import Dataset
+from inference import test_inference
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
@@ -30,7 +31,7 @@ def get_style_targets(vgg, style_img):
         for feat in style_features:
             gram = gram_matrix(feat) 
             style_targets.append(gram.squeeze(0)) # removing batch dim ! -> check
-    print("image style shape after vgg", style_targets[0].size)
+    print("image style shape after vgg", style_targets[0].shape)
     return style_targets 
 
 def load_model_from_checkpoint(checkpoint_path):
@@ -61,13 +62,14 @@ def train_style_transfer():
     vgg = VGG19().to(device)
     vgg.eval()
 
+    vgg_weights = vgg.vgg_model_weights.IMAGENET1K_V1
+    transform = vgg_weights.transforms()
+
     dataset = Dataset(root='/kaggle/input/coco-2017-dataset/coco2017/train2017', transform=transform)
     dataloader = DataLoader(dataset, batch_size=training_config["BATCH_SIZE"], shuffle=True, 
                            num_workers=2, pin_memory=True)
-
-    transform = vgg.vgg_model_weights.IMAGENET1K_V1.transforms
     
-    style_img = Image.open('/content/style.jpeg') 
+    style_img = Image.open('/content/picasso.jpg') 
     style_img = transform(style_img).unsqueeze(0).to(device)
     
     with torch.no_grad():
@@ -97,10 +99,13 @@ def train_style_transfer():
             if total_iterations >= training_config['TOTAL_STEPS']:
                 break
                 
-            content_batch = content_batch.to(device)  #[0,1] and norm and std of vgg19
+            content_batch = content_batch.to(device) 
+            # print("content_batch : ",content_batch[0].shape)
             
             # Generate stylized output
-            stylized_batch = style_net(content_batch)  
+            stylized_batch = style_net(content_batch) 
+            # print("stylized_batch : ",stylized_batch[0].shape)
+             # 224*224
             
             # Convert to [0,1] for VGG processing
             # content_batch_vgg = denormalize_batch(content_batch)
@@ -108,8 +113,10 @@ def train_style_transfer():
             
             # Extract features
             content_features = vgg(content_batch)
+            # print("content_features : ",content_features[0].shape)
             stylized_features = vgg(stylized_batch) 
-            
+            # print("stylized_features : ",stylized_features[0].shape)
+
             # Calculate losses
             c_loss = content_loss(stylized_features, content_features)
             s_loss = style_loss(stylized_features, style_targets)
@@ -147,7 +154,21 @@ def train_style_transfer():
                       f"TV: {tv_loss.item():.6f} "
                       f"LR: {scheduler.get_last_lr()[0]:.2e}")
                 running_loss = 0.0
-            
+              
+            if total_iterations % 1000 == 0:
+                image = Image.open("/content/dancing (1).jpg").convert("RGB")
+                content_image = transform(image).unsqueeze(0).to(device)
+                # print("image tensor shape : ", content_image[0].shape)
+                # print("image tensor to check values : ", content_image)
+                stylized_tensor = style_net(content_image)
+                # print("output image tensor to check values : ", sample_image)
+                stylized_tensor = denormalize_batch(stylized_tensor)
+                stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
+        
+                stylized_img = transforms.ToPILImage()(stylized_tensor[0].device())
+                stylized_img.save("/content/")
+                print(f"Stylized image saved to {"/content/"}")
+
             # Save checkpoints
             if total_iterations % 5000 == 0 and total_iterations > 0:
                 torch.save({

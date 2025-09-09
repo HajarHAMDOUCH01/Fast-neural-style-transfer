@@ -28,7 +28,7 @@ def denormalize_batch(batch):
 
 def test_inference(model_path, content_path, output_path):
     style_net = StyleTransferNet().to(device)
-    style_net.load_state_dict(torch.load(model_path, map_location=device))
+    style_net.load_state_dict(model_path)
     style_net.eval()
     
     transform = transforms.Compose([
@@ -50,4 +50,7 @@ def test_inference(model_path, content_path, output_path):
     print(f"Stylized image saved to {output_path}")
 
 if __name__ == "__main__":
-    test_inference("model", "content_img", "output")
+    checkpoint_path = ""
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model = checkpoint['model_state_dict']
+    test_inference(model, "content_img", "output")
