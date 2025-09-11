@@ -184,13 +184,14 @@ pip install -r requirements.txt
 Please ensure all contributions maintain compatibility with the original paper's methodology and produce comparable results.
 
 ## References
-
-bibtex@article{johnson2016perceptual,
+```
+@article{johnson2016perceptual,
   title={Perceptual losses for real-time style transfer and super-resolution},
   author={Johnson, Justin and Alahi, Alexandre and Fei-Fei, Li},
   journal={arXiv preprint arXiv:1603.08155},
   year={2016}
 }
+```
 
 ## License
 This implementation is for research and educational purposes. Please refer to the original paper for detailed methodology and theoretical background.
