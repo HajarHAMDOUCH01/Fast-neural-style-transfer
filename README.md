@@ -151,10 +151,10 @@ python begin_inference.py \
 ## Coming Soon
 **Stay tuned for:**
 
-Inference implementation using Transformers in Hugging Face
-Comprehensive performance tests and benchmarks
-Quantitative results on standard test datasets
-Speed comparisons across different hardware configurations
+- Inference implementation using Transformers in Hugging Face
+- Comprehensive performance tests and benchmarks
+- Quantitative results on standard test datasets
+- Speed comparisons across different hardware configurations
 
 ## Contributing
 We welcome contributions to this implementation! Here's how you can help:
