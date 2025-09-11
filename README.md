@@ -157,17 +157,47 @@ python begin_inference.py \
 - NumPy
 - CUDA-capable GPU (recommended)
 
+## Coming Soon
+**Stay tuned for:**
+
+Inference implementation using Transformers in Hugging Face
+Comprehensive performance tests and benchmarks
+Quantitative results on standard test datasets
+Speed comparisons across different hardware configurations
+
+## Contributing
+We welcome contributions to this implementation! Here's how you can help:
+Ways to Contribute
+
+*Bug fixes*: Report and fix issues in the training or inference pipeline
+*Performance improvements*: Optimize code for better speed or memory usage
+*Documentation*: Improve README, add code comments, or create tutorials
+*Testing*: Add unit tests, integration tests, or performance benchmarks
+*Features*: Implement additional loss functions or network architectures
+
+**Contribution Guidelines**
+
+Fork the repository and create a feature branch
+Follow coding standards: Use consistent formatting and meaningful variable names
+Test your changes: Ensure your code works with the existing pipeline
+Document your work: Add docstrings and update README if needed
+Submit a pull request with clear description of changes
+
+Development Setup
+bashgit clone https://github.com/your-repo/fast-neural-style-transfer
+cd fast-neural-style-transfer
+pip install -r requirements.txt
+
+Please ensure all contributions maintain compatibility with the original paper's methodology and produce comparable results.
+
 ## References
 
-```bibtex
-@article{johnson2016perceptual,
+bibtex@article{johnson2016perceptual,
   title={Perceptual losses for real-time style transfer and super-resolution},
   author={Johnson, Justin and Alahi, Alexandre and Fei-Fei, Li},
   journal={arXiv preprint arXiv:1603.08155},
   year={2016}
 }
-```
 
 ## License
-
 This implementation is for research and educational purposes. Please refer to the original paper for detailed methodology and theoretical background.
