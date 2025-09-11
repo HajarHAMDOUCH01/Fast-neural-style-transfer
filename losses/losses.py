@@ -8,12 +8,13 @@ def gram_matrix(input_feat):
     features = input_feat.view(b, c, h * w)
     
     gram = torch.bmm(features, features.transpose(1, 2))
-    gram = gram.div(c*h*w) 
+    gram = gram.div(2*c*h*w) 
 
-    return gram 
+    return gram # should be pf shape b,c * b,c ? 
 
 #loss functions
 def style_loss(input_features, target_grams):
+    #indices of style layers from vgg19
     style_indices = [0, 1, 2, 3, 5]  
     
     total_loss = 0.0
@@ -23,7 +24,7 @@ def style_loss(input_features, target_grams):
         target_gram = target_grams[idx]
         
         gram = gram_matrix(input_feat)
-        
+        print("gram matrix shape : ",gram.shape)
         # adding batch dimention to style targets gram matrix 
         if target_gram.dim() == 2:
             target_gram = target_gram.unsqueeze(0)
@@ -31,14 +32,8 @@ def style_loss(input_features, target_grams):
         if gram.size(0) != target_gram.size(0):
             target_gram = target_gram.expand_as(gram)
         
-        loss = (gram - target_gram) # of size b, c, h*w
-        # gets the width and height of loss
-        channels = loss.size()[1]
-        h_w = loss.size()[2]
-        # Frobenius Normalization
-        normalized_loss = torch.linalg.norm(loss, ord='fro', dim=(1, 2)) 
-        normalized_layer_loss = normalized_loss.mean()
-        total_loss +=  normalized_layer_loss # square Frobenius Normalization
+        loss = torch.nn.functional.mse_loss(gram, target_gram)
+        total_loss +=  loss # normalization is inside gram function 
     
     return total_loss
 
