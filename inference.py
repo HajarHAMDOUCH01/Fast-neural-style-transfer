@@ -48,11 +48,5 @@ def test_inference(model_path, content_path, output_path):
     stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
 
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].device())
-    stylized_img.save("/content/output.jpg")
-    print(f"Stylized image saved to {"/content/output.jpg"}")
-
-if __name__ == "__main__":
-    checkpoint_path = ""
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    model = checkpoint['model_state_dict']
-    test_inference(model, "content_img", "output")
+    stylized_img.save(f"{output_path}")
+    print(f"Stylized image saved to {output_path}")

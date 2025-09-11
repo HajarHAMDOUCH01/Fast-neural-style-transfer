@@ -18,3 +18,9 @@ vgg_loss_layers = {
     "CONTENT_LAYER" : 'relu4_2',
     "STYLE_LAYERS"  :('relu1_1', 'relu2_1', 'relu3_1', 'relu4_1', 'relu5_1')
 }
+
+style_image = "style.jpg"
+training_monitor_content_image = "dancing.jpg"
+dataset_dir = "/kaggle/input/coco-2017-dataset/coco2017/train2017"
+output_dir = "/content"
+inference_content_image = "dancing.jpg"
