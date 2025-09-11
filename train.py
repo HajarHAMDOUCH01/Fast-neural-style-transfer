@@ -13,7 +13,7 @@ sys.path.append('/content/real-time-neural-style-transfer')
 from losses.losses import gram_matrix, style_loss, total_variation_loss, content_loss
 from models.model import StyleTransferNet
 from models.vgg19_net import VGG19
-from config import training_config, loss_weights_config, vgg_loss_layers, dataset_path, training_monitor_content_image, style_image
+from config import training_config, loss_weights_config, vgg_loss_layers, dataset_dir, training_monitor_content_image, style_image
 from utils.image_utils import normalize_batch, denormalize_batch
 from data.dataset import Dataset
 from inference import test_inference

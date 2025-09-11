@@ -10,7 +10,7 @@ def gram_matrix(input_feat):
     gram = torch.bmm(features, features.transpose(1, 2))
     gram = gram.div(2*c*h*w) 
 
-    return gram # should be pf shape b,c * b,c ? 
+    return gram 
 
 #loss functions
 def style_loss(input_features, target_grams):
@@ -24,7 +24,7 @@ def style_loss(input_features, target_grams):
         target_gram = target_grams[idx]
         
         gram = gram_matrix(input_feat)
-        print("gram matrix shape : ",gram.shape)
+        # print("gram matrix shape : ",gram.shape) # (b,c,c)
         # adding batch dimention to style targets gram matrix 
         if target_gram.dim() == 2:
             target_gram = target_gram.unsqueeze(0)
@@ -32,7 +32,9 @@ def style_loss(input_features, target_grams):
         if gram.size(0) != target_gram.size(0):
             target_gram = target_gram.expand_as(gram)
         
-        loss = torch.nn.functional.mse_loss(gram, target_gram)
+        # gram matrices are normalized in gram function now 
+        loss = gram - target_gram
+        loss = loss.pow(2).sum()
         total_loss +=  loss # normalization is inside gram function 
     
     return total_loss
