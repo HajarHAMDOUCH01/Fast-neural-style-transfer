@@ -7,7 +7,7 @@ training_config = {
     "TRAIN_IMAGE_SHAPE" : (256, 256),
 }
 
-# for 'scream' style , every style has different config for weights - to be done later 
+# for 'starry night' style , every style has different config for weights - to be done later 
 loss_weights_config = {
     "CONTENT_WEIGHT" : 1.0,
     "STYLE_WEIGHT"  : 60.0,
