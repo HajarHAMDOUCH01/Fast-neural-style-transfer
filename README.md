@@ -176,7 +176,7 @@ Submit a pull request with clear description of changes
 
 Development Setup
 ```python
-bashgit clone https://github.com/your-repo/fast-neural-style-transfer
+bashgit clone https://github.com/HajarHAMDOUCH01/fast-neural-style-transfer
 cd fast-neural-style-transfer
 pip install -r requirements.txt
 ```
