@@ -109,7 +109,7 @@ python begin_training.py \
     --style_image "styles/starry_night.jpg" \
     --training_monitor_content_image "content/mountains.jpg" \
     --dataset_dir "data/train_images" \
-    --output_dir "results/stylized_images" \
+    --output_dir "results/checkpoints_and_images_and_final_weights" \
     --content_weight 1e5 \
     --style_weight 1e10 \
     --tv_weight 1e-6 \
