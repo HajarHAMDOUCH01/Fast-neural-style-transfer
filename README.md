@@ -140,15 +140,6 @@ python begin_inference.py \
 - **Learning rate**: 1×10⁻³ works well across different styles
 - **weight decay**: weight decay with CosineAnnealingLR
 
-## Performance Comparison
-
-| Method | Image Size | Time | Speedup |
-|--------|------------|------|---------|
-| Gatys et al. (500 iter) | 256×256 | 15.86s | 1× |
-| This implementation | 256×256 | 0.015s | 1060× |
-| Gatys et al. (500 iter) | 512×512 | 54.85s | 1× |
-| This implementation | 512×512 | 0.05s | 1026× |
-
 ## Requirements
 
 - PyTorch ≥ 1.7
@@ -184,9 +175,11 @@ Document your work: Add docstrings and update README if needed
 Submit a pull request with clear description of changes
 
 Development Setup
+```python
 bashgit clone https://github.com/your-repo/fast-neural-style-transfer
 cd fast-neural-style-transfer
 pip install -r requirements.txt
+```
 
 Please ensure all contributions maintain compatibility with the original paper's methodology and produce comparable results.
 
