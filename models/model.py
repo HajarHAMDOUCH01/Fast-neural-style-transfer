@@ -34,7 +34,7 @@ class UpsampleConv(nn.Module):
         self.scale = scale
         pad = kernel // 2
         
-        self.upsample = nn.Upsample(scale_factor=scale, mode='bilinear', align_corners='False')
+        self.upsample = nn.Upsample(scale_factor=scale, mode='nearest')
         self.conv = nn.Conv2d(
             in_ch, out_ch, kernel_size=kernel,
             stride=1, padding=pad

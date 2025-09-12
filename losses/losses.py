@@ -33,7 +33,7 @@ def style_loss(input_features, target_grams):
             target_gram = target_gram.expand_as(gram)
         
         # gram matrices are normalized in gram function now 
-        loss = F.mse_loss(gram, target_gram, reduction="mean")
+        loss = F.mse_loss(gram, target_gram, reduction="sum")
         total_loss +=  loss # normalization is inside gram function 
     
     return total_loss
@@ -47,9 +47,9 @@ def content_loss(input_features, target_features):
     return loss
 
 def total_variation_loss(img):
-    # batch_size, channels, height, width = img.size()
+    batch_size, channels, height, width = img.size()
     
-    tv_h = torch.abs(img[:, :, 1:, :] - img[:, :, :-1, :], 2).mean()
-    tv_w = torch.abs(img[:, :, :, 1:] - img[:, :, :, :-1], 2).mean()
+    tv_h = torch.abs(img[:, :, 1:, :] - img[:, :, :-1, :]).mean()
+    tv_w = torch.abs(img[:, :, :, 1:] - img[:, :, :, :-1]).mean()
     
-    return (tv_h + tv_w) 
+    return (tv_h + tv_w) / (channels*height*width)
