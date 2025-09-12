@@ -17,7 +17,7 @@ def gram_matrix(input_feat):
 def style_loss(input_features, target_grams):
     """Calculate style loss using Gram matrices"""
     # Indices of style layers from VGG19
-    style_indices = [0, 1, 2, 3, 4]  # relu1_1, relu2_1, relu3_1, relu4_1, relu5_1
+    style_indices = [0, 1, 2, 3, 5]  # relu1_1, relu2_1, relu3_1, relu4_1, relu5_1
     
     layers_weights = [0.2, 0.2, 0.2, 0.2, 0.2]  
     
@@ -52,8 +52,11 @@ def content_loss(input_features, target_features):
     input_content = input_features[content_layer_idx]
     target_content = target_features[content_layer_idx]
     
-    # Use mean reduction 
-    loss = F.mse_loss(input_content, target_content, reduction='mean')
+    loss = F.mse_loss(input_content, target_content, reduction='sum')
+    
+    # Normalize by feature map size
+    b, c, h, w = input_content.size()
+    loss = loss / (c * h * w)
     
     return loss
 

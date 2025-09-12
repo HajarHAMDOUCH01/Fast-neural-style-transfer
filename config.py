@@ -10,8 +10,8 @@ training_config = {
 # for 'starry night' style , every style has different config for weights - to be done later 
 loss_weights_config = {
     "CONTENT_WEIGHT" : 1.0,
-    "STYLE_WEIGHT"  : 100.0,
-    "TV_WEIGHT"     : 1e-4,
+    "STYLE_WEIGHT"  : 1000.0,
+    "TV_WEIGHT"     : 1e-2,
 }
 
 vgg_loss_layers = {
