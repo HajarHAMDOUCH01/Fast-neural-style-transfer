@@ -19,9 +19,11 @@ class ResidualBlock(nn.Module):
         self.in1 = nn.InstanceNorm2d(channels, affine=True)
         self.conv2 = ConvLayer(channels, channels, kernel=3)
         self.in2 = nn.InstanceNorm2d(channels, affine=True)
+        self.dropout = nn.Dropout2d(0.1)
 
     def forward(self, x):
         y = F.relu(self.in1(self.conv1(x)))
+        y = self.dropout(y)
         y = self.in2(self.conv2(y))
         return x + y
     
@@ -32,7 +34,7 @@ class UpsampleConv(nn.Module):
         self.scale = scale
         pad = kernel // 2
         
-        self.upsample = nn.Upsample(scale_factor=scale, mode='nearest')
+        self.upsample = nn.Upsample(scale_factor=scale, mode='bilinear', align_corners='False')
         self.conv = nn.Conv2d(
             in_ch, out_ch, kernel_size=kernel,
             stride=1, padding=pad

@@ -8,14 +8,14 @@ def gram_matrix(input_feat):
     features = input_feat.view(b, c, h * w)
     
     gram = torch.bmm(features, features.transpose(1, 2))
-    gram = gram.div(2*c*h*w) 
+    gram = gram.div(c*h*w) 
 
     return gram 
 
 #loss functions
 def style_loss(input_features, target_grams):
     #indices of style layers from vgg19
-    style_indices = [0, 1, 2, 3, 5]  
+    style_indices = [0, 2, 5]  
     
     total_loss = 0.0
     
@@ -33,24 +33,23 @@ def style_loss(input_features, target_grams):
             target_gram = target_gram.expand_as(gram)
         
         # gram matrices are normalized in gram function now 
-        loss = gram - target_gram
-        loss = loss.pow(2).sum()
+        loss = F.mse_loss(gram, target_gram, reduction="mean")
         total_loss +=  loss # normalization is inside gram function 
     
     return total_loss
 
 def content_loss(input_features, target_features):
     # relu4_2 (index 4) as content layer
-    loss = F.mse_loss(input_features[4], target_features[4], reduction='sum') 
+    loss = F.mse_loss(input_features[4], target_features[4], reduction='mean') 
     # loss should be normalized by the c*h*w of the size of the content layer of the vgg19 
-    content_layer_size = input_features[4].numel()
-    normalized_loss = loss / content_layer_size
-    return normalized_loss
+    # content_layer_size = input_features[4].numel()
+    # normalized_loss = loss / content_layer_size
+    return loss
 
 def total_variation_loss(img):
-    batch_size, channels, height, width = img.size()
+    # batch_size, channels, height, width = img.size()
     
-    tv_h = torch.pow(img[:, :, 1:, :] - img[:, :, :-1, :], 2).sum()
-    tv_w = torch.pow(img[:, :, :, 1:] - img[:, :, :, :-1], 2).sum()
+    tv_h = torch.abs(img[:, :, 1:, :] - img[:, :, :-1, :], 2).mean()
+    tv_w = torch.abs(img[:, :, :, 1:] - img[:, :, :, :-1], 2).mean()
     
-    return (tv_h + tv_w) / (batch_size * channels * height * width)
+    return (tv_h + tv_w) 
