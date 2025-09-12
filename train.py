@@ -21,17 +21,18 @@ from inference import test_inference
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-def get_style_targets(vgg, style_img=style_image):
+def get_style_targets(vgg, style_img):
+    """Extract style targets from style image"""
     vgg.eval()
     with torch.no_grad():
         style_features = vgg(style_img) 
-        print("style_features shape : ", style_features[0].shape)
-        style_targets = []
+        print("Style features shapes:", [f.shape for f in style_features])
         
+        style_targets = []
         for feat in style_features:
             gram = gram_matrix(feat) 
-            style_targets.append(gram.squeeze(0)) # removing batch dim ! -> check
-    print("image style shape after vgg", style_targets[0].shape)
+            style_targets.append(gram.squeeze(0).detach())  
+            
     return style_targets 
 
 def load_model_from_checkpoint(checkpoint_path, lr, total_steps, ):
@@ -71,27 +72,43 @@ def train_style_transfer(
         total_steps,
         lr
 ):
+    # Initialize VGG19 for loss calculation
     vgg = VGG19().to(device)
     vgg.eval()
+    for param in vgg.parameters():
+        param.requires_grad = False  # Freeze VGG parameters
 
-    vgg_weights = vgg.vgg_model_weights.IMAGENET1K_V1
-    transform = vgg_weights.transforms()
+    # Use proper ImageNet normalization
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+    
+    # Transform for training data
+    transform = transforms.Compose([
+        transforms.Resize((256, 256)),  
+        transforms.ToTensor(),
+        normalize
+    ])
 
+    # Load dataset
     dataset = Dataset(root=dataset_dir, transform=transform)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, 
-                           num_workers=2, pin_memory=True)
+                           num_workers=2, pin_memory=True, drop_last=True)
     
-    style_img = Image.open(style_image) 
+    # Load and preprocess style image
+    style_img = Image.open(style_image).convert('RGB')
     style_img = transform(style_img).unsqueeze(0).to(device)
     
+    # Extract style targets
     with torch.no_grad():
-        style_targets = get_style_targets(vgg, style_img) # without batch dim 
-        style_targets = [t.detach() for t in style_targets]
+        style_targets = get_style_targets(vgg, style_img)
     
+    # Initialize style transfer network
     style_net = StyleTransferNet().to(device)
     
     optimizer = optim.Adam(style_net.parameters(),
-                          lr=lr,
+                          lr=lr * 0.1,  
                           betas=(0.9, 0.999),
                           eps=1e-8,
                           weight_decay=1e-5)
@@ -99,87 +116,117 @@ def train_style_transfer(
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
         T_max=total_steps,
-        eta_min=1e-6
+        eta_min=1e-7
     )
     
     style_net.train()
     total_iterations = 0
     running_loss = 0.0
+    running_content_loss = 0.0
+    running_style_loss = 0.0
+    running_tv_loss = 0.0
+    
+    print("Starting training...")
     
     for epoch in range(num_epochs):
         for batch_idx, content_batch in enumerate(dataloader):
             if total_iterations >= total_steps:
                 break
                 
-            content_batch = content_batch.to(device) 
-            # print("content_batch : ",content_batch[0].shape)
+            content_batch = content_batch.to(device)
             
             # Generate stylized output
-            stylized_batch = style_net(content_batch) 
-            # print("stylized_batch : ",stylized_batch[0].shape)
-             # 224*224
+            stylized_batch = style_net(content_batch)
             
-            # Convert to [0,1] for VGG processing
-            # content_batch_vgg = denormalize_batch(content_batch)
-            # stylized_batch_vgg = denormalize_batch(stylized_batch)
+            # Clamp output to reasonable range
+            stylized_batch = torch.clamp(stylized_batch, -3, 3)
             
-            # Extract features
-            content_features = vgg(content_batch)
-            # print("content_features : ",content_features[0].shape)
-            stylized_features = vgg(stylized_batch) 
-            # print("stylized_features : ",stylized_features[0].shape)
+            # Extract features for loss calculation
+            with torch.no_grad():
+                content_features = vgg(content_batch)
+            
+            stylized_features = vgg(stylized_batch)
 
             # Calculate losses
             c_loss = content_loss(stylized_features, content_features)
             s_loss = style_loss(stylized_features, style_targets)
             tv_loss = total_variation_loss(stylized_batch)
             
+            # Scale losses appropriately
             total_loss = (content_weight * c_loss + 
                          style_weight * s_loss + 
                          tv_weight * tv_loss)
             
-            # Check for NaN
+            # Check for NaN/inf
             if torch.isnan(total_loss) or torch.isinf(total_loss):
                 print(f"Invalid loss at iteration {total_iterations}")
                 print(f"Content: {c_loss.item():.6f}, Style: {s_loss.item():.6f}, TV: {tv_loss.item():.6f}")
                 continue
             
+            # Backpropagation
             optimizer.zero_grad()
             total_loss.backward()
             
-            # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1.0)
+            # Gradient clipping - more aggressive
+            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=0.5)
             
             optimizer.step()
             scheduler.step()
             
+            # Update running losses
             running_loss += total_loss.item()
+            running_content_loss += c_loss.item()
+            running_style_loss += s_loss.item()
+            running_tv_loss += tv_loss.item()
+            
             total_iterations += 1
             
-            # Logging with better frequency
+            # Logging
             if total_iterations % 100 == 0:
                 avg_loss = running_loss / 100
-                print(f"Iteration [{total_iterations}/{total_steps}] "
-                      f"Total: {avg_loss:.4f} "
-                      f"Content: {c_loss.item():.4f} "
-                      f"Style: {s_loss.item():.4f} "
-                      f"TV: {tv_loss.item():.6f} "
+                avg_content = running_content_loss / 100
+                avg_style = running_style_loss / 100
+                avg_tv = running_tv_loss / 100
+                
+                print(f"Iter [{total_iterations}/{total_steps}] "
+                      f"Total: {avg_loss:.4f} | "
+                      f"Content: {avg_content:.4f} | "
+                      f"Style: {avg_style:.4f} | "
+                      f"TV: {avg_tv:.6f} | "
                       f"LR: {scheduler.get_last_lr()[0]:.2e}")
+                
+                # Reset running losses
                 running_loss = 0.0
+                running_content_loss = 0.0
+                running_style_loss = 0.0
+                running_tv_loss = 0.0
               
+            # Generate sample images
             if total_iterations % 1000 == 0:
-                image = Image.open(training_monitor_content_image).convert("RGB")
-                content_image = transform(image).unsqueeze(0).to(device)
-                # print("image tensor shape : ", content_image[0].shape)
-                # print("image tensor to check values : ", content_image)
-                stylized_tensor = style_net(content_image)
-                # print("output image tensor to check values : ", sample_image)
-                stylized_tensor = denormalize_batch(stylized_tensor)
-                stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
-        
-                stylized_img = transforms.ToPILImage()(stylized_tensor[0].to(device))
-                stylized_img.save(f"{output_dir}/sample_image_{total_iterations}.jpg")
-                print(f"Stylized image saved {total_iterations}")
+                style_net.eval()
+                with torch.no_grad():
+                    # Load and preprocess test image
+                    test_image = Image.open(training_monitor_content_image).convert("RGB")
+                    test_tensor = transform(test_image).unsqueeze(0).to(device)
+                    
+                    # Generate stylized image
+                    stylized_tensor = style_net(test_tensor)
+                    
+                    # Denormalize and convert to PIL
+                    # Reverse the normalization
+                    denorm = transforms.Normalize(
+                        mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
+                        std=[1/0.229, 1/0.224, 1/0.225]
+                    )
+                    stylized_tensor = denorm(stylized_tensor[0])
+                    stylized_tensor = torch.clamp(stylized_tensor, 0, 1)
+                    
+                    # Convert to PIL and save
+                    stylized_img = transforms.ToPILImage()(stylized_tensor.cpu())
+                    stylized_img.save(f"{output_dir}/sample_image_{total_iterations}.jpg")
+                    print(f"Sample image saved: {total_iterations}")
+                
+                style_net.train()
 
             # Save checkpoints
             if total_iterations % 5000 == 0 and total_iterations > 0:
@@ -190,6 +237,7 @@ def train_style_transfer(
                     'iteration': total_iterations,
                     'loss': total_loss.item()
                 }, f"{output_dir}/checkpoint_{total_iterations}.pth")
+                print(f"Checkpoint saved: {total_iterations}")
                 
             if total_iterations >= total_steps:
                 break

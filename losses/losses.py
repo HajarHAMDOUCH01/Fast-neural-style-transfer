@@ -4,52 +4,68 @@ import torch.nn.functional as F
 from config import vgg_loss_layers
 
 def gram_matrix(input_feat):
+    """Compute Gram matrix for style representation"""
     b, c, h, w = input_feat.size()
     features = input_feat.view(b, c, h * w)
     
     gram = torch.bmm(features, features.transpose(1, 2))
-    gram = gram.div(c*h*w) 
-
+    # Normalize by feature map size 
+    gram = gram.div(c * h * w)
+    
     return gram 
 
-#loss functions
 def style_loss(input_features, target_grams):
-    #indices of style layers from vgg19
-    style_indices = [0, 2, 5]  
+    """Calculate style loss using Gram matrices"""
+    # Indices of style layers from VGG19
+    style_indices = [0, 1, 2, 3, 4]  # relu1_1, relu2_1, relu3_1, relu4_1, relu5_1
+    
+    layers_weights = [0.2, 0.2, 0.2, 0.2, 0.2]  
     
     total_loss = 0.0
     
-    for idx in style_indices:
+    for idx, weight in zip(style_indices, layers_weights):
         input_feat = input_features[idx]
         target_gram = target_grams[idx]
         
+        # Calculate Gram matrix for current layer
         gram = gram_matrix(input_feat)
-        # print("gram matrix shape : ",gram.shape) # (b,c,c)
-        # adding batch dimention to style targets gram matrix 
+        
+        # Ensure target_gram has batch dimension
         if target_gram.dim() == 2:
             target_gram = target_gram.unsqueeze(0)
-
+        
+        # Expand target to match batch size
         if gram.size(0) != target_gram.size(0):
             target_gram = target_gram.expand_as(gram)
         
-        # gram matrices are normalized in gram function now 
-        loss = F.mse_loss(gram, target_gram, reduction="sum")
-        total_loss +=  loss # normalization is inside gram function 
+        # Calculate MSE loss between Gram matrices
+        layer_loss = F.mse_loss(gram, target_gram, reduction='mean')
+        total_loss += weight * layer_loss
     
     return total_loss
 
 def content_loss(input_features, target_features):
-    # relu4_2 (index 4) as content layer
-    loss = F.mse_loss(input_features[4], target_features[4], reduction='mean') 
-    # loss should be normalized by the c*h*w of the size of the content layer of the vgg19 
-    # content_layer_size = input_features[4].numel()
-    # normalized_loss = loss / content_layer_size
+    """Calculate content loss using relu4_2 layer"""
+    # Use relu4_2 (index 4) as content layer
+    content_layer_idx = 4
+    
+    input_content = input_features[content_layer_idx]
+    target_content = target_features[content_layer_idx]
+    
+    # Use mean reduction 
+    loss = F.mse_loss(input_content, target_content, reduction='mean')
+    
     return loss
 
 def total_variation_loss(img):
+    """Calculate total variation loss to reduce noise"""
     batch_size, channels, height, width = img.size()
     
-    tv_h = torch.abs(img[:, :, 1:, :] - img[:, :, :-1, :]).mean()
-    tv_w = torch.abs(img[:, :, :, 1:] - img[:, :, :, :-1]).mean()
+    # Calculate differences between adjacent pixels
+    tv_h = torch.pow(img[:, :, 1:, :] - img[:, :, :-1, :], 2).sum()
+    tv_w = torch.pow(img[:, :, :, 1:] - img[:, :, :, :-1], 2).sum()
     
-    return (tv_h + tv_w) / (channels*height*width)
+    # Normalize by image size
+    tv_loss = (tv_h + tv_w) / (batch_size * channels * height * width)
+    
+    return tv_loss
