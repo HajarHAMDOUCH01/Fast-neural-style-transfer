@@ -9,17 +9,15 @@ def gram_matrix(input_feat):
     features = input_feat.view(b, c, h * w)
     
     gram = torch.bmm(features, features.transpose(1, 2))
-    # Normalize by feature map size 
-    gram = gram.div(c * h * w)
     
-    return gram 
+    return gram.div(c*h*w)
 
 def style_loss(input_features, target_grams):
     """Calculate style loss using Gram matrices"""
     # Indices of style layers from VGG19
     style_indices = [0, 1, 2, 3, 5]  # relu1_1, relu2_1, relu3_1, relu4_1, relu5_1
     
-    layers_weights = [0.2, 0.2, 0.2, 0.2, 0.2]  
+    layers_weights = [0.2,0.2,0.2,0.4,0.2]  
     
     total_loss = 0.0
     
@@ -29,6 +27,7 @@ def style_loss(input_features, target_grams):
         
         # Calculate Gram matrix for current layer
         gram = gram_matrix(input_feat)
+        c = target_gram.shape[0]
         
         # Ensure target_gram has batch dimension
         if target_gram.dim() == 2:
@@ -39,8 +38,8 @@ def style_loss(input_features, target_grams):
             target_gram = target_gram.expand_as(gram)
         
         # Calculate MSE loss between Gram matrices
-        layer_loss = F.mse_loss(gram, target_gram, reduction='mean')
-        total_loss += weight * layer_loss
+        layer_loss = F.mse_loss(gram, target_gram, reduction='sum')
+        total_loss += (weight * layer_loss) / c*c
     
     return total_loss
 

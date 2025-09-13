@@ -167,8 +167,8 @@ def train_style_transfer(
             optimizer.zero_grad()
             total_loss.backward()
             
-            # Gradient clipping - more aggressive
-            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=0.5)
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1.0)
             
             optimizer.step()
             scheduler.step()
@@ -200,6 +200,10 @@ def train_style_transfer(
                 running_content_loss = 0.0
                 running_style_loss = 0.0
                 running_tv_loss = 0.0
+            
+            if total_iterations % 10000 == 0:
+                content_weight = content_weight / 10
+                style_weight = style_weight * 10
               
             # Generate sample images
             if total_iterations % 1000 == 0:
