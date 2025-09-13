@@ -27,6 +27,7 @@ def style_loss(input_features, target_grams):
         
         # Calculate Gram matrix for current layer
         gram = gram_matrix(input_feat)
+        print("target gram : ", target_gram)
         c = target_gram.shape[0]
         
         # Ensure target_gram has batch dimension

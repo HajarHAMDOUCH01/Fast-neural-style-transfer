@@ -128,8 +128,8 @@ def train_style_transfer(
     
     print("Starting training...")
     
-    for epoch in range(num_epochs):
-        for batch_idx, content_batch in enumerate(dataloader):
+    for _ in range(num_epochs):
+        for _, content_batch in enumerate(dataloader):
             if total_iterations >= total_steps:
                 break
                 
