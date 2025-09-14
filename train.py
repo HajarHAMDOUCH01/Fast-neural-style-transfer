@@ -156,6 +156,9 @@ def train_style_transfer(
             if total_iterations >= total_steps:
                 break
                 
+            print("content weight : ", content_weight)
+            print("style weight : ", style_weight)
+
             content_batch = content_batch.to(device)
             
             # Generate stylized output
@@ -223,7 +226,17 @@ def train_style_transfer(
                 running_content_loss = 0.0
                 running_style_loss = 0.0
                 running_tv_loss = 0.0
+
+            # weights initialization depending on start_iteration
+            if start_iteration == 0:
+                content_weight = 1000.0
+                style_weight = 1.0
+            else:
+                i = start_iteration / 10000
+                content_weight = content_weight / (i*10000)
+                style_weight = style_weight * (i*10000)
             
+            # changing of weights every 10000
             if total_iterations % 10000 == 0:
                 content_weight = content_weight / 10
                 style_weight = style_weight * 10
