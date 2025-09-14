@@ -124,8 +124,8 @@ def train_style_transfer(
         style_net, optimizer, scheduler, start_iteration = load_model_from_checkpoint(checkpoint_path, lr, total_steps)
         print(f"Resuming training from iteration {start_iteration}") 
         i = start_iteration / 10000
-        content_weight = content_weight / (i*10000)
-        style_weight = style_weight * (i*10000)
+        content_weight = content_weight / pow(10,i)
+        style_weight = style_weight * pow(10,i)
                 
         print("content weight : ", content_weight)
         print("style weight : ", style_weight)
