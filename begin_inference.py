@@ -10,7 +10,7 @@ def main():
 
     parser.add_argument("--output_dir", type=str, default=output_dir, help="Directory to save results")
     parser.add_argument("--content_image", type=str, default=inference_content_image, help="content image in ineference")
-    parser.add_argument("--model_path", type=str, default="model_weights", help="model weights")
+    parser.add_argument("--model_path", type=str, default="model_weights", help="model weights file")
 
     args = parser.parse_args()
     test_inference(

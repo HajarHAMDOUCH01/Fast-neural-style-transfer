@@ -34,10 +34,11 @@ def test_inference(model_path, content_path, output_path):
     transform = vgg_weights.transforms()
 
     style_net = StyleTransferNet().to(device)
-    style_net.load_state_dict(model_path)
+    checkpoint = torch.load(model_path, map_location=device)
+    style_net.load_state_dict(checkpoint['model_state_dict'])
     style_net.eval()
     
-    image = Image.open("/content/dancing (1).jpg").convert("RGB")
+    image = Image.open(content_path).convert("RGB")
     content_image = transform(image).unsqueeze(0).to(device)
     # print("image tensor shape : ", content_image[0].shape)
     # print("image tensor to check values : ", content_image)

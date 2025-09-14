@@ -5,7 +5,7 @@ import torch
 import onnxruntime
 import numpy as np
 
-onnx_model = onnx.load("")
+onnx_model = onnx.load("/content/nst_onnx_model.onnx")
 onnx.checker.check_model(onnx_model)
 
 transform = transforms.Compose([
@@ -25,13 +25,16 @@ def fom_tensor_to_image(image_tensor):
     image = transforms.ToPILImage()(image_tensor.cpu())
     return image
 
-def onnx_inference(image_path, output_dir):
+def onnx_inference(image_path, output_dir, onnx_model_path):
     input_tensor = from_img_to_tensor(image_path)
     onnx_input = input_tensor.detach().cpu().numpy()
     ort_session = onnxruntime.InferenceSession(
-        "onnx_file.onnx", providers=["CPUExecutionProvider"]
+        onnx_model_path, providers=["CPUExecutionProvider"]
     )
     onnxruntime_input = {ort_session.get_inputs()[0].name: onnx_input[0]}
     onnxruntime_output = ort_session.run(None, onnxruntime_input)[0]
     output_image = fom_tensor_to_image(onnxruntime_output)
     output_image.save(f"{output_dir}/ouput_image.jpg")
+
+if __name__=="__main__":
+  onnx_inference("/content/dancing.jpg", "/content", "/content/nst_onnx_model.onnx")
