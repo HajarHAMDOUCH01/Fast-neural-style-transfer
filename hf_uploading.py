@@ -13,7 +13,7 @@ style_transfer_net = StyleTransferNet().to("cuda")
 
 model_file = checkpoint['model_state_dict']
 
-os.save(model_file, "/content/pytorch_model.pth")
-os.rename(model_file, "pytorch_model.bin")
+torch.save(model_file, "/content/pytorch_model.pth")
+torch.rename(model_file, "pytorch_model.bin")
 
 
