@@ -22,6 +22,8 @@ def main():
     parser.add_argument("--batch_size", type=int, default=training_config["BATCH_SIZE"], help="Training batch size")
     parser.add_argument("--total_steps", type=int, default=training_config['TOTAL_STEPS'], help="Total training steps")
     parser.add_argument("--lr", type=float, default=training_config['LEARNING_RATE'], help="Learning rate")
+    parser.add_argument("--checkpoint_path", type=str, default=None, help="start training from a checkpoint")
+
 
     args = parser.parse_args()
 
@@ -37,7 +39,8 @@ def main():
         args.num_epochs,
         args.batch_size,
         args.total_steps,
-        args.lr
+        args.lr,
+        args.checkpoint_path
     )
 
 if __name__ == '__main__':

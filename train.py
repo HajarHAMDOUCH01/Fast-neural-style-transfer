@@ -35,29 +35,34 @@ def get_style_targets(vgg, style_img):
             
     return style_targets 
 
-def load_model_from_checkpoint(checkpoint_path, lr, total_steps, ):
-    start_iteration = checkpoint_path['iteartion']
+def load_model_from_checkpoint(checkpoint_path, lr, total_steps):
+    print(f"Loading checkpoint from: {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+
     style_transfer_net = StyleTransferNet().to(device)
-    model = checkpoint_path['model']
-    stn_stat_dict = torch.load(model, map_location=device)
-    style_transfer_net.load_state_dict(stn_stat_dict)
+    style_transfer_net.load_state_dict(checkpoint['model_state_dict'])
     adam_optimizer = optim.Adam(style_transfer_net.parameters(),
-                        lr=lr,
-                        betas=(0.9, 0.999),
-                        eps=1e-8,
-                        weight_decay=1e-5)  
-    optimizer_checkpoint = checkpoint_path['optimizer']
-    adam_stat_dict = torch.load(optimizer_checkpoint, map_location=device)
-    adam_optimizer.load_state_dict(adam_stat_dict)
+                                lr=lr,
+                                betas=(0.9,0.999),
+                                eps=1e-8,
+                                weight_decay=1e-5)
+    adam_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+    start_iteration = checkpoint['iteration']
+
+    remaining_steps = max(1, total_steps - start_iteration)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         adam_optimizer,
-        T_max=total_steps - start_iteration,
-        eta_min=1e-6
+        T_max=remaining_steps,
+        eta_min=1e-7
     )
-    scheduler_checkpoint = checkpoint_path['scheduler']
-    scheduler_stat_dict = torch.load(scheduler_checkpoint, map_location=device)
-    scheduler.load_state_dict(scheduler_stat_dict)
-    return start_iteration
+    if 'scheduler_state_dict' in checkpoint:
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    
+    print(f"Load checkpoint from iteration {start_iteration}")
+    print(f"Will continue training for {remaining_steps} more steps")
+
+    return style_transfer_net, adam_optimizer, scheduler, start_iteration
 
 def train_style_transfer(
         style_image,
@@ -70,8 +75,12 @@ def train_style_transfer(
         num_epochs,
         batch_size,
         total_steps,
-        lr
+        lr, 
+        checkpoint_path= None
 ):
+    # create output dir if it doesn't exist 
+    os.makedirs(output_dir, exist_ok=True)
+
     # Initialize VGG19 for loss calculation
     vgg = VGG19().to(device)
     vgg.eval()
@@ -104,31 +113,45 @@ def train_style_transfer(
     with torch.no_grad():
         style_targets = get_style_targets(vgg, style_img)
     
-    # Initialize style transfer network
-    style_net = StyleTransferNet().to(device)
-    
-    optimizer = optim.Adam(style_net.parameters(),
-                          lr=lr * 0.1,  
-                          betas=(0.9, 0.999),
-                          eps=1e-8,
-                          weight_decay=1e-5)
+    start_iteration = 0
 
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=total_steps,
-        eta_min=1e-7
-    )
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        style_transfer_net, optimizer, scheduler, start_iteration = load_model_from_checkpoint(checkpoint_path, lr, total_steps)
+        print(f"Resuming training from iteration {start_iteration}") 
+    
+    else:
+        # Initialize style transfer network
+        style_net = StyleTransferNet().to(device)
+        
+        optimizer = optim.Adam(style_net.parameters(),
+                            lr=lr * 0.1,  
+                            betas=(0.9, 0.999),
+                            eps=1e-8,
+                            weight_decay=1e-5)
+
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=total_steps,
+            eta_min=1e-7
+        )
     
     style_net.train()
-    total_iterations = 0
+    total_iterations = start_iteration
     running_loss = 0.0
     running_content_loss = 0.0
     running_style_loss = 0.0
     running_tv_loss = 0.0
     
-    print("Starting training...")
+    print(f"Training will run from iteration {start_iteration} to {total_steps}")
     
-    for _ in range(num_epochs):
+    remaining_iterations = total_steps - start_iteration
+    if remaining_iterations <= 0:
+        print("Training already completed!")
+        return
+    
+    epoch = 0
+    while total_iterations < total_steps:
+        epoch += 1
         for _, content_batch in enumerate(dataloader):
             if total_iterations >= total_steps:
                 break
@@ -234,20 +257,31 @@ def train_style_transfer(
 
             # Save checkpoints
             if total_iterations % 5000 == 0 and total_iterations > 0:
-                torch.save({
+                checkpoint_dict = {
                     'model_state_dict': style_net.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'scheduler_state_dict': scheduler.state_dict(),
                     'iteration': total_iterations,
-                    'loss': total_loss.item()
-                }, f"{output_dir}/checkpoint_{total_iterations}.pth")
-                print(f"Checkpoint saved: {total_iterations}")
+                    'loss': total_loss.item(),
+                    'content_weight': content_weight,
+                    'style_weight': style_weight,
+                    'tv_weight': tv_weight
+                }
+                
+                checkpoint_filename = f"{output_dir}/checkpoint_{total_iterations}.pth"
+                torch.save(checkpoint_dict, checkpoint_filename)
+                print(f"Checkpoint saved: {checkpoint_filename}")
                 
             if total_iterations >= total_steps:
                 break
         
         if total_iterations >= total_steps:
             break
+    
+    # Save final model
+    final_model_path = f"{output_dir}/style_transfer_final.pth"
+    torch.save(style_net.state_dict(), final_model_path)
+    print(f"Training completed! Final model saved to: {final_model_path}")
     
     # Save final model
     torch.save(style_net.state_dict(), f"{output_dir}/style_transfer_final.pth")
