@@ -27,30 +27,33 @@ def denormalize_batch(batch):
 
 
 def test_inference(model_path, content_path, output_path):
-
-    print("heerreee")
-
     transform = transforms.Compose([
-    transforms.Resize((256, 256)),  
-    transforms.ToTensor(),
+        transforms.Resize((256, 256)),  
+        transforms.ToTensor(),
     ])
-
     style_net = StyleTransferNet().to(device)
     checkpoint = torch.load(model_path, map_location=device)
-    style_net.load_state_dict(checkpoint['model_state_dict'])
+    model_state_dict = checkpoint['model_state_dict']
+    style_net.load_state_dict(model_state_dict)
     style_net.eval()
-    
-    image = Image.open(content_path).convert("RGB")
-    content_image = transform(image).unsqueeze(0).to(device)
-    # print("image tensor shape : ", content_image[0].shape)
-    # print("image tensor to check values : ", content_image)
     with torch.no_grad():
-        stylized_tensor = style_net(content_image)
-        # print("output image tensor to check values : ", sample_image)
-    stylized_tensor = denormalize_batch(stylized_tensor)
-    stylized_tensor = torch.clamp(stylized_tensor * 255, 0, 255)
-
-    stylized_img = transforms.ToPILImage()(stylized_tensor[0].device())
-    stylized_img.save(f"{output_path}")
-    print(f"Stylized image saved to {output_path}")
+        # Load and preprocess test image
+        test_image = Image.open(content_path).convert("RGB")
+        test_tensor = transform(test_image).unsqueeze(0).to(device)
+        
+        # Generate stylized image
+        stylized_tensor = style_net(test_tensor)
+        
+        # Denormalize and convert to PIL
+        # Reverse the normalization
+        denorm = transforms.Normalize(
+            mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
+            std=[1/0.229, 1/0.224, 1/0.225]
+        )
+        stylized_tensor = denorm(stylized_tensor[0])
+        stylized_tensor = torch.clamp(stylized_tensor, 0, 1)
+        
+        # Convert to PIL and save
+        stylized_img = transforms.ToPILImage()(stylized_tensor.cpu())
+        stylized_img.save(f"{output_path}/noraml_output.jpg")
 
