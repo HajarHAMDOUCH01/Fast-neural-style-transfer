@@ -10,8 +10,8 @@ sys.path.append('/content/real-time-neural-style-transfer')
 
 model = StyleTransferNet()
 
-model_state_dict = torch.load("", map_location="cpu")
-model.load_state_dict(model_state_dict)
+checkpoint = torch.load("", map_location="cpu")
+model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
 dummy_input = (torch.randn(1,3,256,256))
