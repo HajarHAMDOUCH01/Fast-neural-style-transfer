@@ -27,11 +27,11 @@ def denormalize_batch(batch):
 
 
 def test_inference(model_path, content_path, output_path):
-    vgg = VGG19().to(device)
-    vgg.eval()
 
-    vgg_weights = vgg.vgg_model_weights.IMAGENET1K_V1
-    transform = vgg_weights.transforms()
+    transform = transforms.Compose([
+    transforms.Resize((256, 256)),  
+    transforms.ToTensor(),
+    ])
 
     style_net = StyleTransferNet().to(device)
     checkpoint = torch.load(model_path, map_location=device)
