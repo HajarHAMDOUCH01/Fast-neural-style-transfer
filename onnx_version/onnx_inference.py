@@ -19,7 +19,7 @@ def from_img_to_tensor(image_path):
     return image_tensor
 
 def fom_tensor_to_image(image_tensor):
-    if image_tensor.dim == 4:
+    if image_tensor.dim() == 4:
         image_tensor = image_tensor[0]
     image_tensor = torch.clamp(image_tensor, 0, 1)
     image = transforms.ToPILImage()(image_tensor.cpu())
@@ -27,11 +27,11 @@ def fom_tensor_to_image(image_tensor):
 
 def onnx_inference(image_path, output_dir):
     input_tensor = from_img_to_tensor(image_path)
-    onnx_input = [tensor.numpy(force=True) for tensor in input_tensor]
+    onnx_input = input_tensor.detach().cpu().numpy()
     ort_session = onnxruntime.InferenceSession(
         "onnx_file.onnx", providers=["CPUExecutionProvider"]
     )
-    onnxruntime_input = {input_arg.name: input_value for input_arg, input_value in zip(ort_session.get_inputs(), onnx_input)}
+    onnxruntime_input = {ort_session.get_inputs()[0].name: onnx_input[0]}
     onnxruntime_output = ort_session.run(None, onnxruntime_input)[0]
     output_image = fom_tensor_to_image(onnxruntime_output)
     output_image.save(f"{output_dir}/ouput_image.jpg")
