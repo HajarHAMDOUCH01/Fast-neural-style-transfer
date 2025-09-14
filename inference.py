@@ -28,6 +28,8 @@ def denormalize_batch(batch):
 
 def test_inference(model_path, content_path, output_path):
 
+    print("heerreee")
+
     transform = transforms.Compose([
     transforms.Resize((256, 256)),  
     transforms.ToTensor(),
@@ -51,3 +53,4 @@ def test_inference(model_path, content_path, output_path):
     stylized_img = transforms.ToPILImage()(stylized_tensor[0].device())
     stylized_img.save(f"{output_path}")
     print(f"Stylized image saved to {output_path}")
+
