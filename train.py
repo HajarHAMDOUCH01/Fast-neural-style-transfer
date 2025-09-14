@@ -126,6 +126,7 @@ def train_style_transfer(
         i = start_iteration / 10000
         content_weight = content_weight / pow(10,i)
         style_weight = style_weight * pow(10,i)
+        tv_weight = tv_weight * pow(10,i)
                 
         print("content weight : ", content_weight)
         print("style weight : ", style_weight)
@@ -236,6 +237,7 @@ def train_style_transfer(
             if total_iterations % 10000 == 0:
                 content_weight = content_weight / 10
                 style_weight = style_weight * 10
+                tv_weight = tv_weight * 5
               
             # Generate sample images
             if total_iterations % 1000 == 0:

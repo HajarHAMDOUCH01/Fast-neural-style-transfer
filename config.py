@@ -11,7 +11,7 @@ training_config = {
 loss_weights_config = {
     "CONTENT_WEIGHT" : 1000.0,
     "STYLE_WEIGHT"  : 1,
-    "TV_WEIGHT"     : 1e-2,
+    "TV_WEIGHT"     : 1e-4,
 }
 
 vgg_loss_layers = {
