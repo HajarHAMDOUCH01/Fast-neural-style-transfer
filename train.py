@@ -109,6 +109,9 @@ def train_style_transfer(
     style_img = Image.open(style_image).convert('RGB')
     style_img = transform(style_img).unsqueeze(0).to(device)
     
+    # Initialize style transfer network
+    style_net = StyleTransferNet().to(device)
+
     # Extract style targets
     with torch.no_grad():
         style_targets = get_style_targets(vgg, style_img)
@@ -116,13 +119,10 @@ def train_style_transfer(
     start_iteration = 0
 
     if checkpoint_path and os.path.exists(checkpoint_path):
-        style_transfer_net, optimizer, scheduler, start_iteration = load_model_from_checkpoint(checkpoint_path, lr, total_steps)
+        style_net, optimizer, scheduler, start_iteration = load_model_from_checkpoint(checkpoint_path, lr, total_steps)
         print(f"Resuming training from iteration {start_iteration}") 
     
-    else:
-        # Initialize style transfer network
-        style_net = StyleTransferNet().to(device)
-        
+    else:        
         optimizer = optim.Adam(style_net.parameters(),
                             lr=lr * 0.1,  
                             betas=(0.9, 0.999),
