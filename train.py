@@ -290,6 +290,7 @@ def train_style_transfer(
             break
     
     # Save final model
+    
     final_model_path = f"{output_dir}/style_transfer_final.pth"
     torch.save(style_net.state_dict(), final_model_path)
     torch.save(style_net, f"{output_dir}/style_transfer.bin")
