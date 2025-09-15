@@ -235,9 +235,9 @@ def train_style_transfer(
             
             # changing of weights every 10000
             if total_iterations % 10000 == 0:
-                content_weight = content_weight / 10
+                content_weight = content_weight / 4
                 style_weight = style_weight * 10
-                tv_weight = tv_weight * 5
+                tv_weight = tv_weight * 10
               
             # Generate sample images
             if total_iterations % 1000 == 0:
