@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from models.model import StyleTransferNet
 
 import sys
-
 sys.path.append('/content/real-time-neural-style-transfer')
 
 model = StyleTransferNet()
