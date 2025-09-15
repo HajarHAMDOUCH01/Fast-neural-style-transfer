@@ -24,17 +24,12 @@ with torch.no_grad():
     torch.onnx.export(
         model,
         dummy_input,
-        "/content/nst_onnx_model.onnx",
+        "/content/nst_model_onnx.onnx",
         export_params=True,
         opset_version=11,  
         input_names=["input_image"],
         output_names=["output_image"],
-        dynamic_axes={
-            'input_image': {0: 'batch_size'},
-            'output_image': {0: 'batch_size'}
-        },
         do_constant_folding=True,  # Enable constant folding optimization
-        verbose=False
     )
 
 print("ONNX model saved at /content/nst_onnx_model.onnx")
