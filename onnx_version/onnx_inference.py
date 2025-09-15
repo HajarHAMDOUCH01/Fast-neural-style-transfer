@@ -14,7 +14,7 @@ transform = transforms.Compose([
 ])
 
 def from_img_to_tensor(image_path):
-    image = Image.open(image_path).to("RGB")
+    image = Image.open(image_path).convert("RGB")
     image_tensor = transform(image).unsqueeze(0)
     return image_tensor
 
