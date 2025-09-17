@@ -15,9 +15,9 @@ def gram_matrix(input_feat):
 def style_loss(input_features, target_grams):
     """Calculate style loss using Gram matrices"""
     # Indices of style layers from VGG19
-    style_indices = [0, 1, 2, 3, 5]  # relu1_1, relu2_1, relu3_1, relu4_1, relu5_1
+    style_indices = [2, 3, 5]  # relu3_1, relu4_1, relu5_1
     
-    layers_weights = [0.1,0.2,0.15,0.4,0.2]  
+    layers_weights = [0.2, 0.3, 0.5] 
     
     total_loss = 0.0
     
