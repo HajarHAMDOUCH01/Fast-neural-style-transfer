@@ -21,7 +21,7 @@ This implementation trains a feed-forward convolutional neural network to transf
 
 **Second Art : Van Gogh**
 
-![image alt]()
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/68c2939516a98bb2e2be688c395a02e272fc8433/sunflowers.jpg)
 
 **Stylized Image**
 
