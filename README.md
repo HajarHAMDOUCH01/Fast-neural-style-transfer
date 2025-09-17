@@ -25,7 +25,7 @@ This implementation trains a feed-forward convolutional neural network to transf
 
 **Stylized Image**
 
-![image alt]()
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/65d2d46093f7847b18910b3954a73ae8f63cfcd3/sample_image_sunflowers_style.jpg)
 
 
 The method combines two key innovations:
