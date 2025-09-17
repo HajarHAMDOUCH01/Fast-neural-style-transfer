@@ -6,6 +6,22 @@ This implementation trains a feed-forward convolutional neural network to transf
 
 ## Overview
 
+***Original Image***
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/2d84ee10d6b86239ce1e406fb1c43c425cb75e1a/dancing.jpg)
+
+***First style : Picasso Art***
+![image alt]()
+
+***Stylized Image***
+![image alt]()
+
+***Second Art : Van Gogh***
+![image alt]()
+
+***Stylized Image***
+![image alt]()
+
+
 The method combines two key innovations:
 - **Feed-forward transformation network**: A deep CNN that learns to transform images in a single forward pass
 - **Perceptual loss functions**: Loss functions based on high-level features from a pretrained VGG-19 network rather than pixel-wise differences
