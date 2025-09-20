@@ -55,30 +55,28 @@ The training objective combines three loss terms:
 
 ### 1. Feature Reconstruction Loss
 Encourages content preservation by matching high-level features:
-```
-ℓ_feat^φ,j(ŷ,y) = 1/(C_j H_j W_j) ||φ_j(ŷ) - φ_j(y)||²₂
-```
+![image alt]()
+
+
 - Computed at VGG19 layer `relu4_2`
 - φ_j(x) represents activations at layer j
 
 ### 2. Style Reconstruction Loss
 Captures style characteristics using Gram matrix correlations:
-```
-ℓ_style^φ,j(ŷ,y) = ||G^φ_j(ŷ) - G^φ_j(y)||²_F
-```
-Where Gram matrix: `G^φ_j(x)_c,c' = 1/(C_j H_j W_j) Σ_h,w φ_j(x)_h,w,c φ_j(x)_h,w,c'`
+
+![image alt]()
+
 - Computed at VGG layers: `relu1_1`, `relu2_1`, `relu3_1`, `relu4_1`, `relu5_1`
+- but you can choose higher layers to capture better representation of style or do weighting of style layers.
 
 ### 3. Total Variation Regularization
 Promotes spatial smoothness in output:
-```
-ℓ_TV(ŷ) = Σ_i,j [(ŷ_i,j+1 - ŷ_i,j)² + (ŷ_i+1,j - ŷ_i,j)²]
-```
+
+![image alt]()
 
 ### Combined Loss
-```
-L = λ_c ℓ_feat + λ_s Σ_j ℓ_style^j + λ_TV ℓ_TV
-```
+
+![image alt]()
 
 ## Dataset and Training
 
