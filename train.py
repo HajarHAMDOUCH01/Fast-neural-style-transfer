@@ -118,7 +118,7 @@ def train_style_transfer(
     
     start_iteration = 0
     content_weight = 1000.0
-    style_weight = 1.0
+    style_weight = 1
 
     if checkpoint_path and os.path.exists(checkpoint_path):
         style_net, optimizer, scheduler, start_iteration = load_model_from_checkpoint(checkpoint_path, lr, total_steps)
@@ -126,7 +126,6 @@ def train_style_transfer(
         i = start_iteration / 10000
         content_weight = content_weight / pow(10,i)
         style_weight = style_weight * pow(10,i)
-        tv_weight = tv_weight * pow(10,i)
                 
         print("content weight : ", content_weight)
         print("style weight : ", style_weight)
@@ -235,9 +234,8 @@ def train_style_transfer(
             
             # changing of weights every 10000
             if total_iterations % 10000 == 0:
-                content_weight = content_weight / 4
+                content_weight = content_weight / 5
                 style_weight = style_weight * 10
-                tv_weight = tv_weight * 10
               
             # Generate sample images
             if total_iterations % 1000 == 0:
