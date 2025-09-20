@@ -1,8 +1,9 @@
 # Fast Neural Style Transfer
 
-A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016).
+A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016). Except it's by using InstanceNormalization instead of BatchNormalization.
 
-This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time style transfer that is three orders of magnitude faster than optimization-based methods.
+This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time (3 seconds on T4 in google colab and around 1 or 2 seconds in onnx runtime-web) style transfer.
+
 
 ## Overview
 
@@ -28,6 +29,11 @@ This implementation trains a feed-forward convolutional neural network to transf
 ![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/65d2d46093f7847b18910b3954a73ae8f63cfcd3/sample_image_sunflowers_style.jpg)
 
 
+## Try in this app : 
+
+[Web App for demonstartion Using onnx runtime-web and NextJS](https://app-neural-style-transfer.vercel.app/)
+
+
 The method combines two key innovations:
 - **Feed-forward transformation network**: A deep CNN that learns to transform images in a single forward pass
 - **Perceptual loss functions**: Loss functions based on high-level features from a pretrained VGG-19 network rather than pixel-wise differences
@@ -41,7 +47,7 @@ The method combines two key innovations:
   - 2 strided convolutions for downsampling (stride=2)
   - 5 residual blocks for feature transformation
   - 2 fractionally-strided convolutions for upsampling (stride=1/2)
-  - Batch normalization and ReLU activations throughout
+  - Instance Normalization and ReLU activations throughout
   - Final scaled tanh to ensure output pixels in range [0,255]
 
 ### Loss Network
@@ -79,7 +85,7 @@ Promotes spatial smoothness in output:
 
 ![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/940f0c59c4473ad65008bb25af1adb7399918682/total_loss.png)
 
-## Dataset and Training
+## Dataset and Training 
 
 ### Training Data
 - **COCO 2017 Dataset**: ~118k training images
@@ -92,7 +98,7 @@ Promotes spatial smoothness in output:
 - **Iterations**: 40,000 (approximately 2 epochs)
 - **Loss weights**:
   - λ_c = 1.0 (content weight)
-  - λ_s = 60.0 (style weight for starry night)
+  - λ_s = 100.0 (style weight for starry night)
   - λ_TV = 1×10⁻1 to 1×10⁻2 (chosen via cross-validation per style)
 
 ### Training Process
@@ -107,7 +113,7 @@ Promotes spatial smoothness in output:
 ## Key Features
 
 ### Real-time Performance
-- **Speed**: Processes 256×256 images at 4 seconds on google colab T4 GPU
+- **Speed**: Processes 256×256 images at 3 seconds on google colab T4 GPU
 - **Efficiency**: 1000× faster than optimization-based methods
 - **Quality**: Comparable results to iterative optimization
 
@@ -152,14 +158,7 @@ python begin_inference.py \
 ### Architectural Choices
 - **Residual connections**: Help preserve image structure during transformation
 - **Downsampling strategy**: Reduces computational cost and increases receptive field
-- **Batch normalization**: Stabilizes training and improves convergence
-- **Fractional stride convolutions**: Learnable upsampling vs fixed interpolation
-
-### Training Stability
-- **Batch normalization**: Essential for stable training
-- **Adam optimizer**: Better convergence than SGD for this architecture
-- **Learning rate**: 1×10⁻³ works well across different styles
-- **weight decay**: weight decay with CosineAnnealingLR
+- **Instance normalization**: Gives better results than instance normalization
 
 ## Requirements
 
@@ -168,14 +167,6 @@ python begin_inference.py \
 - PIL/Pillow
 - NumPy
 - CUDA-capable GPU (recommended)
-
-## Coming Soon
-**Stay tuned for:**
-
-- Inference implementation using Transformers in Hugging Face
-- Comprehensive performance tests and benchmarks
-- Quantitative results on standard test datasets
-- Speed comparisons across different hardware configurations
 
 ## Contributing
 We welcome contributions to this implementation! Here's how you can help:
