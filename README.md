@@ -77,7 +77,7 @@ Promotes spatial smoothness in output:
 
 ### Combined Loss
 
-![image alt]()
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/940f0c59c4473ad65008bb25af1adb7399918682/total_loss.png)
 
 ## Dataset and Training
 
