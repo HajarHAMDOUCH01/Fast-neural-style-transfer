@@ -65,7 +65,7 @@ Encourages content preservation by matching high-level features:
 ### 2. Style Reconstruction Loss
 Captures style characteristics using Gram matrix correlations:
 
-![image alt]()
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/073233a7b891a6d187c13c128c789560f948dc8e/style_loss.png)
 
 - Computed at VGG layers: `relu1_1`, `relu2_1`, `relu3_1`, `relu4_1`, `relu5_1`
 - but you can choose higher layers to capture better representation of style or do weighting of style layers.
