@@ -73,7 +73,7 @@ Captures style characteristics using Gram matrix correlations:
 ### 3. Total Variation Regularization
 Promotes spatial smoothness in output:
 
-![image alt]()
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/8a4f6522246861b5f622497e1b8880542b0fc5d2/tv_loss.png)
 
 ### Combined Loss
 
