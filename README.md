@@ -55,7 +55,8 @@ The training objective combines three loss terms:
 
 ### 1. Feature Reconstruction Loss
 Encourages content preservation by matching high-level features:
-![image alt]()
+
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/732c3d0faf1f46c5b2630760d1027df3f0d243e1/feature_reconstruction_loss.png)
 
 
 - Computed at VGG19 layer `relu4_2`
