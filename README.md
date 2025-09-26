@@ -18,7 +18,7 @@ This implementation trains a feed-forward convolutional neural network to transf
 
 **Stylized Image**
 
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/dc43ca157da960bc132375864896005d317f9d36/sample_image_picasso_art_style.jpg)
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/c75f0f596035fb28c302b4152a537e6973f6a81f/sample_image_picasso.jpg)
 
 **Second Art : Van Gogh**
 
