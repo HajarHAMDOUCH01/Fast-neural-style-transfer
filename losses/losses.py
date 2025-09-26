@@ -17,7 +17,7 @@ def style_loss(input_features, target_grams):
     # Indices of style layers from VGG19
     style_indices = [2, 3, 5]  # relu3_1, relu4_1, relu5_1
     
-    layers_weights = [0.1, 0.2, 0.7] 
+    layers_weights = [0.05, 0.15, 0.8] 
     
     total_loss = 0.0
     

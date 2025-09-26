@@ -31,10 +31,15 @@ def test_inference(model_path, content_path, output_path):
         transforms.Resize((256, 256)),  
         transforms.ToTensor(),
     ])
-    style_net = StyleTransferNet().to(device)
-    checkpoint = torch.load(model_path, map_location=device)
-    model_state_dict = checkpoint['model_state_dict']
-    style_net.load_state_dict(model_state_dict)
+    if model_path.endswith('.pth'):
+        style_net = StyleTransferNet().to(device)
+        checkpoint = torch.load(model_path, map_location=device)
+        model_state_dict = checkpoint['model_state_dict']
+        style_net.load_state_dict(model_state_dict)
+    elif model_path.endswith('.pt'):
+        style_net = torch.jit.load("model_traced.pt")
+    else:
+        raise ValueError(f"Unsupported model format: {model_path}")
     style_net.eval()
     with torch.no_grad():
         # Load and preprocess test image
