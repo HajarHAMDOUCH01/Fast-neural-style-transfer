@@ -5,8 +5,6 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from PIL import Image
 import torch.nn.functional as F
-import os
-import numpy as np
 
 import sys
 sys.path.append('/content/real-time-neural-style-transfer')
@@ -37,7 +35,7 @@ def test_inference(model_path, content_path, output_path):
         model_state_dict = checkpoint['model_state_dict']
         style_net.load_state_dict(model_state_dict)
     elif model_path.endswith('.pt'):
-        style_net = torch.jit.load("model_traced.pt")
+        style_net = torch.jit.load("model_traced.pt", map_location=device)
     else:
         raise ValueError(f"Unsupported model format: {model_path}")
     style_net.eval()
