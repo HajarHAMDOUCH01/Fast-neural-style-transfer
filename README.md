@@ -1,8 +1,9 @@
 # Fast Neural Style Transfer
 
-A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016).
+A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016). Except it's by using InstanceNormalization instead of BatchNormalization.
 
-This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time style transfer that is three orders of magnitude faster than optimization-based methods.
+This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time (3 seconds on T4 in google colab and around 1 or 2 seconds in onnx runtime-web) style transfer.
+
 
 ## Overview
 
@@ -28,6 +29,11 @@ This implementation trains a feed-forward convolutional neural network to transf
 ![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/65d2d46093f7847b18910b3954a73ae8f63cfcd3/sample_image_sunflowers_style.jpg)
 
 
+## Try in this app : 
+
+[Web App for demonstartion Using onnx runtime-web and NextJS](https://app-neural-style-transfer.vercel.app/)
+
+
 The method combines two key innovations:
 - **Feed-forward transformation network**: A deep CNN that learns to transform images in a single forward pass
 - **Perceptual loss functions**: Loss functions based on high-level features from a pretrained VGG-19 network rather than pixel-wise differences
@@ -41,7 +47,7 @@ The method combines two key innovations:
   - 2 strided convolutions for downsampling (stride=2)
   - 5 residual blocks for feature transformation
   - 2 fractionally-strided convolutions for upsampling (stride=1/2)
-  - Batch normalization and ReLU activations throughout
+  - Instance Normalization and ReLU activations throughout
   - Final scaled tanh to ensure output pixels in range [0,255]
 
 ### Loss Network
@@ -55,32 +61,31 @@ The training objective combines three loss terms:
 
 ### 1. Feature Reconstruction Loss
 Encourages content preservation by matching high-level features:
-```
-ℓ_feat^φ,j(ŷ,y) = 1/(C_j H_j W_j) ||φ_j(ŷ) - φ_j(y)||²₂
-```
+
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/732c3d0faf1f46c5b2630760d1027df3f0d243e1/feature_reconstruction_loss.png)
+
+
 - Computed at VGG19 layer `relu4_2`
 - φ_j(x) represents activations at layer j
 
 ### 2. Style Reconstruction Loss
 Captures style characteristics using Gram matrix correlations:
-```
-ℓ_style^φ,j(ŷ,y) = ||G^φ_j(ŷ) - G^φ_j(y)||²_F
-```
-Where Gram matrix: `G^φ_j(x)_c,c' = 1/(C_j H_j W_j) Σ_h,w φ_j(x)_h,w,c φ_j(x)_h,w,c'`
+
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/073233a7b891a6d187c13c128c789560f948dc8e/style_loss.png)
+
 - Computed at VGG layers: `relu1_1`, `relu2_1`, `relu3_1`, `relu4_1`, `relu5_1`
+- but you can choose higher layers to capture better representation of style or do weighting of style layers.
 
 ### 3. Total Variation Regularization
 Promotes spatial smoothness in output:
-```
-ℓ_TV(ŷ) = Σ_i,j [(ŷ_i,j+1 - ŷ_i,j)² + (ŷ_i+1,j - ŷ_i,j)²]
-```
+
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/8a4f6522246861b5f622497e1b8880542b0fc5d2/tv_loss.png)
 
 ### Combined Loss
-```
-L = λ_c ℓ_feat + λ_s Σ_j ℓ_style^j + λ_TV ℓ_TV
-```
 
-## Dataset and Training
+![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/940f0c59c4473ad65008bb25af1adb7399918682/total_loss.png)
+
+## Dataset and Training 
 
 ### Training Data
 - **COCO 2017 Dataset**: ~118k training images
@@ -93,7 +98,7 @@ L = λ_c ℓ_feat + λ_s Σ_j ℓ_style^j + λ_TV ℓ_TV
 - **Iterations**: 40,000 (approximately 2 epochs)
 - **Loss weights**:
   - λ_c = 1.0 (content weight)
-  - λ_s = 60.0 (style weight for starry night)
+  - λ_s = 100.0 (style weight for starry night)
   - λ_TV = 1×10⁻1 to 1×10⁻2 (chosen via cross-validation per style)
 
 ### Training Process
@@ -108,7 +113,7 @@ L = λ_c ℓ_feat + λ_s Σ_j ℓ_style^j + λ_TV ℓ_TV
 ## Key Features
 
 ### Real-time Performance
-- **Speed**: Processes 256×256 images at 4 seconds on google colab T4 GPU
+- **Speed**: Processes 256×256 images at 3 seconds on google colab T4 GPU
 - **Efficiency**: 1000× faster than optimization-based methods
 - **Quality**: Comparable results to iterative optimization
 
@@ -153,14 +158,7 @@ python begin_inference.py \
 ### Architectural Choices
 - **Residual connections**: Help preserve image structure during transformation
 - **Downsampling strategy**: Reduces computational cost and increases receptive field
-- **Batch normalization**: Stabilizes training and improves convergence
-- **Fractional stride convolutions**: Learnable upsampling vs fixed interpolation
-
-### Training Stability
-- **Batch normalization**: Essential for stable training
-- **Adam optimizer**: Better convergence than SGD for this architecture
-- **Learning rate**: 1×10⁻³ works well across different styles
-- **weight decay**: weight decay with CosineAnnealingLR
+- **Instance normalization**: Gives better results than instance normalization
 
 ## Requirements
 
@@ -169,14 +167,6 @@ python begin_inference.py \
 - PIL/Pillow
 - NumPy
 - CUDA-capable GPU (recommended)
-
-## Coming Soon
-**Stay tuned for:**
-
-- Inference implementation using Transformers in Hugging Face
-- Comprehensive performance tests and benchmarks
-- Quantitative results on standard test datasets
-- Speed comparisons across different hardware configurations
 
 ## Contributing
 We welcome contributions to this implementation! Here's how you can help:
