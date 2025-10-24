@@ -7,6 +7,7 @@ from PIL import Image
 import torch.nn.functional as F
 import os
 import numpy as np
+import gc
 
 import sys
 sys.path.append('/content/real-time-neural-style-transfer')
@@ -132,7 +133,7 @@ def train_style_transfer(
     
     else:        
         optimizer = optim.Adam(style_net.parameters(),
-                            lr=lr * 0.1,  
+                            lr=lr,  
                             betas=(0.9, 0.999),
                             eps=1e-8,
                             weight_decay=1e-5)
@@ -234,8 +235,8 @@ def train_style_transfer(
             
             # changing of weights every 10000
             if total_iterations % 10000 == 0:
-                content_weight = content_weight / 5
-                style_weight = style_weight * 10
+                content_weight = content_weight / 2
+                style_weight = style_weight * 2
               
             # Generate sample images
             if total_iterations % 1000 == 0:
@@ -280,6 +281,8 @@ def train_style_transfer(
                 checkpoint_filename = f"{output_dir}/checkpoint_{total_iterations}.pth"
                 torch.save(checkpoint_dict, checkpoint_filename)
                 print(f"Checkpoint saved: {checkpoint_filename}")
+
+                
                 
             if total_iterations >= total_steps:
                 break
@@ -297,4 +300,10 @@ def train_style_transfer(
     # Save final model
     torch.save(style_net.state_dict(), f"{output_dir}/style_transfer_final.pth")
     print("Training completed!")
+
+    def clear_memory():
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        gc.collect()
 

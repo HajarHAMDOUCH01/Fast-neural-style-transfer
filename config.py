@@ -1,13 +1,13 @@
 
 training_config = {
-    "TOTAL_STEPS" : 40000,
-    "BATCH_SIZE"     : 4  ,
+    "TOTAL_STEPS" : 80000,
+    "BATCH_SIZE"     : 20  ,
     "LEARNING_RATE"  : 1e-3,
-    "NUM_EPOCHS"     : 2,
+    "NUM_EPOCHS"     : 4,
     "TRAIN_IMAGE_SHAPE" : (256, 256),
 }
 
-# for 'starry night' style , every style has different config for weights - to be done later 
+# style and content weights change every 10k iterations
 loss_weights_config = {
     "CONTENT_WEIGHT" : 1000.0,
     "STYLE_WEIGHT"  : 1,
@@ -16,7 +16,7 @@ loss_weights_config = {
 
 vgg_loss_layers = {
     "CONTENT_LAYER" : 'relu4_2',
-    "STYLE_LAYERS"  :('relu1_1', 'relu2_1', 'relu3_1', 'relu4_1', 'relu5_1')
+    "STYLE_LAYERS"  :('relu1_2', 'relu2_2', 'relu3_3', 'relu4_3')
 }
 
 style_image = "style.jpg"

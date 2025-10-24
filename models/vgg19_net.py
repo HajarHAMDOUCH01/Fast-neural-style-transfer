@@ -33,27 +33,22 @@ class VGG19(nn.Module):
         self.slice2 = nn.Sequential()
         self.slice3 = nn.Sequential()
         self.slice4 = nn.Sequential()
-        self.slice5 = nn.Sequential()
-        self.slice6 = nn.Sequential() 
-        
-        # relu1_1 (conv1_1 + relu1_1)
-        for x in range(2):
+        # 1_2 , 2_2 , 3_3 , 4_3
+        # relu1_2 
+        for x in range(4):
             self.slice1.add_module(str(x), vgg_features[x])
-        # relu2_1 (pool1 + conv2_1 + relu2_1)  
-        for x in range(2, 7):
+        # relu2_2
+        for x in range(4, 9):
             self.slice2.add_module(str(x), vgg_features[x])
-        # relu3_1 (pool2 + conv3_1 + relu3_1)
-        for x in range(7, 12):
+        # relu3_3 
+        for x in range(9, 16):
             self.slice3.add_module(str(x), vgg_features[x])
-        # relu4_1 (pool3 + conv4_1 + relu4_1)
-        for x in range(12, 19):
+        # relu4_2 - for content loss
+        for x in range(16, 22):
             self.slice4.add_module(str(x), vgg_features[x])
-        # relu4_2 (conv4_2 + relu4_2) - for content loss
-        for x in range(19, 21):
+        # # relu4_3  
+        for x in range(22, 25):
             self.slice5.add_module(str(x), vgg_features[x])
-        # relu5_1 (pool4 + conv5_1 + relu5_1)
-        for x in range(21, 26):
-            self.slice6.add_module(str(x), vgg_features[x])
             
         for param in self.parameters():
             param.requires_grad = False
@@ -61,11 +56,11 @@ class VGG19(nn.Module):
     def forward(self, x):
         # x : image 
         
-        h_relu1_1 = self.slice1(x)
-        h_relu2_1 = self.slice2(h_relu1_1)
-        h_relu3_1 = self.slice3(h_relu2_1)
-        h_relu4_1 = self.slice4(h_relu3_1)
-        h_relu4_2 = self.slice5(h_relu4_1)  # Content layer
-        h_relu5_1 = self.slice6(h_relu4_2)  # Style layer
+        h_relu1_2 = self.slice1(x)
+        h_relu2_2 = self.slice2(h_relu1_2)
+        h_relu3_3 = self.slice3(h_relu2_2)
+        h_relu4_2 = self.slice4(h_relu3_3)
+        h_relu4_3 = self.slice5(h_relu4_2)  # Content layer
         
-        return [h_relu1_1, h_relu2_1, h_relu3_1, h_relu4_1, h_relu4_2, h_relu5_1]
+        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_2, h_relu4_3] 
+        

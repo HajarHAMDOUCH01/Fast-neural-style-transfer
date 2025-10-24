@@ -6,7 +6,7 @@ import sys
 sys.path.append('../')
 from models.model import StyleTransferNet
 
-checkpoint = torch.load("./checkpoint_20000 (1).pth", map_location="cpu")
+checkpoint = torch.load("./checkpoint_25000.pth", map_location="cpu")
 
 style_transfer_net = StyleTransferNet()
 style_transfer_net.load_state_dict(checkpoint['model_state_dict'])
