@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 from PIL import Image
 import torch.nn.functional as F
@@ -16,11 +16,30 @@ from models.model import StyleTransferNet
 from models.vgg19_net import VGG19
 from config import training_config, loss_weights_config, vgg_loss_layers, dataset_dir, training_monitor_content_image, style_image
 from utils.image_utils import normalize_batch, denormalize_batch
-from data.dataset import Dataset
+from data.dataset import PlacesStreamingDataset
 from inference import test_inference
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+from torchvision import set_image_backend
+set_image_backend('accimage')
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
+
+import os
+import random
+from collections import defaultdict
+# Use proper ImageNet normalization
+normalize = transforms.Normalize(
+    mean=[0.485, 0.456, 0.406],
+    std=[0.229, 0.224, 0.225]
+)
+transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.ToTensor(),
+    normalize
+])
 
 def get_style_targets(vgg, style_img):
     """Extract style targets from style image"""
@@ -79,6 +98,7 @@ def train_style_transfer(
         lr, 
         checkpoint_path= None
 ):
+    import os
     # create output dir if it doesn't exist 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -88,23 +108,32 @@ def train_style_transfer(
     for param in vgg.parameters():
         param.requires_grad = False  # Freeze VGG parameters
 
-    # Use proper ImageNet normalization
-    normalize = transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-    
-    # Transform for training data
-    transform = transforms.Compose([
-        transforms.Resize((256, 256)),  
-        transforms.ToTensor(),
-        normalize
-    ])
 
-    # Load dataset
-    dataset = Dataset(root=dataset_dir, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, 
-                           num_workers=2, pin_memory=True, drop_last=True)
+    
+
+    # normalize = transforms.Normalize(
+    #     mean=[0.485, 0.456, 0.406],
+    #     std=[0.229, 0.224, 0.225]
+    # )
+    # transform = transforms.Compose([
+    #     transforms.Resize((256, 256)),
+    #     transforms.ToTensor(),
+    #     normalize
+    # ])
+
+    dataset = PlacesStreamingDataset("/kaggle/input/images256", total_images=150_000, transform=transform)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=32,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True,
+        prefetch_factor=2,
+        persistent_workers=True
+    )
+
+
+
     
     # Load and preprocess style image
     style_img = Image.open(style_image).convert('RGB')
@@ -232,7 +261,9 @@ def train_style_transfer(
                 running_content_loss = 0.0
                 running_style_loss = 0.0
                 running_tv_loss = 0.0
-            
+                torch.cuda.empty_cache()
+                gc.collect()
+
             # changing of weights every 10000
             if total_iterations % 10000 == 0:
                 content_weight = content_weight / 2

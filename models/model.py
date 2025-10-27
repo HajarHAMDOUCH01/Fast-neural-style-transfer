@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import typing
-from typing import Optional
 
 class UpsampleConv(nn.Module):
     def __init__(self, in_ch: int, out_ch: int, kernel: int, scale: int = 2):

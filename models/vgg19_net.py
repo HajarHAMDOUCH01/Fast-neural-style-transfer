@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 VGG19_LAYERS = (
@@ -33,6 +31,8 @@ class VGG19(nn.Module):
         self.slice2 = nn.Sequential()
         self.slice3 = nn.Sequential()
         self.slice4 = nn.Sequential()
+        self.slice5 = nn.Sequential()
+
         # 1_2 , 2_2 , 3_3 , 4_3
         # relu1_2 
         for x in range(4):

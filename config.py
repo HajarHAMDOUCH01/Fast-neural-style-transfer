@@ -1,17 +1,17 @@
 
 training_config = {
-    "TOTAL_STEPS" : 80000,
-    "BATCH_SIZE"     : 20  ,
+    "TOTAL_STEPS" : 40000,
+    "BATCH_SIZE"     : 8  ,
     "LEARNING_RATE"  : 1e-3,
-    "NUM_EPOCHS"     : 4,
+    "NUM_EPOCHS"     : 2,
     "TRAIN_IMAGE_SHAPE" : (256, 256),
 }
 
 # style and content weights change every 10k iterations
 loss_weights_config = {
-    "CONTENT_WEIGHT" : 1000.0,
-    "STYLE_WEIGHT"  : 1,
-    "TV_WEIGHT"     : 10,
+    "CONTENT_WEIGHT": 5.0,      # Reduced but still meaningful
+    "STYLE_WEIGHT": 500,        # 100x ratio (instead of 1000x)
+    "TV_WEIGHT": 5.0,           # Keep reasonable smoothing
 }
 
 vgg_loss_layers = {
@@ -21,6 +21,6 @@ vgg_loss_layers = {
 
 style_image = "style.jpg"
 training_monitor_content_image = "dancing.jpg"
-dataset_dir = "/kaggle/input/coco-2017-dataset/coco2017/train2017"
+dataset_dir = "/kaggle/input/images256"
 output_dir = "/content"
 inference_content_image = "dancing.jpg"
