@@ -1,7 +1,7 @@
 
 training_config = {
     "TOTAL_STEPS" : 40000,
-    "BATCH_SIZE"     : 20  ,
+    "BATCH_SIZE"     : 8  ,
     "LEARNING_RATE"  : 1e-3,
     "NUM_EPOCHS"     : 2,
     "TRAIN_IMAGE_SHAPE" : (256, 256),
