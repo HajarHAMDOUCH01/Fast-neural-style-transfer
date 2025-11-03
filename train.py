@@ -266,7 +266,7 @@ def train_style_transfer(
 
             # # changing of weights every 10000
             if total_iterations % 1000 == 0:
-                style_weight = style_weight * 2
+                style_weight = style_weight * 1.5
             if total_iterations % 10000 == 0: 
                 content_weight = content_weight * 1.1
        
