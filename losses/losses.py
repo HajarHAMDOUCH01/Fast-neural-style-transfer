@@ -44,7 +44,7 @@ def style_loss(input_features, target_grams):
 def content_loss(input_features, target_features):
     """Calculate content loss using relu4_2 layer"""
     # Use relu4_2 (index 4) as content layer
-    content_layer_idx = 4
+    content_layer_idx = 3
     
     input_content = input_features[content_layer_idx]
     target_content = target_features[content_layer_idx]
