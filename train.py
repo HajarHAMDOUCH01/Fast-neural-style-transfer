@@ -233,7 +233,7 @@ def train_style_transfer(
             
             optimizer.step()
             scheduler.step()
-            del c_loss, s_loss, tv_loss
+            
             # Update running losses
             running_loss += total_loss.item()
             running_content_loss += c_loss.item()
@@ -261,6 +261,7 @@ def train_style_transfer(
                 running_content_loss = 0.0
                 running_style_loss = 0.0
                 running_tv_loss = 0.0
+                del c_loss, s_loss, tv_loss
                 clear_memory()
 
             # # changing of weights every 10000
