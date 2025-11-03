@@ -40,7 +40,11 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     normalize
 ])
-
+def clear_memory():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+    gc.collect()
 def get_style_targets(vgg, style_img):
     """Extract style targets from style image"""
     vgg.eval()
@@ -121,7 +125,7 @@ def train_style_transfer(
     #     normalize
     # ])
 
-    dataset = PlacesStreamingDataset("/kaggle/input/images256", total_images=150_000, transform=transform)
+    dataset = PlacesStreamingDataset("/kaggle/input/images256", total_images=120_000, transform=transform)
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=32,
@@ -147,15 +151,12 @@ def train_style_transfer(
         style_targets = get_style_targets(vgg, style_img)
     
     start_iteration = 0
-    content_weight = 1000.0
-    style_weight = 1
 
     if checkpoint_path and os.path.exists(checkpoint_path):
         style_net, optimizer, scheduler, start_iteration = load_model_from_checkpoint(checkpoint_path, lr, total_steps)
         print(f"Resuming training from iteration {start_iteration}") 
-        i = start_iteration / 10000
-        content_weight = content_weight / pow(10,i)
-        style_weight = style_weight * pow(10,i)
+        content_weight = content_weight * 1.4
+        style_weight = style_weight / 1.3 
                 
         print("content weight : ", content_weight)
         print("style weight : ", style_weight)
@@ -197,7 +198,7 @@ def train_style_transfer(
             content_batch = content_batch.to(device)
             
             # Generate stylized output
-            stylized_batch = style_net(content_batch)
+            stylized_batch = style_net(content_batch).to(device).to(device)
             
             # Clamp output to reasonable range
             stylized_batch = torch.clamp(stylized_batch, -3, 3)
@@ -212,7 +213,7 @@ def train_style_transfer(
             c_loss = content_loss(stylized_features, content_features)
             s_loss = style_loss(stylized_features, style_targets)
             tv_loss = total_variation_loss(stylized_batch)
-            
+            del content_features, stylized_batch
             # Scale losses appropriately
             total_loss = (content_weight * c_loss + 
                          style_weight * s_loss + 
@@ -227,13 +228,12 @@ def train_style_transfer(
             # Backpropagation
             optimizer.zero_grad()
             total_loss.backward()
-            
             # Gradient clipping
             torch.nn.utils.clip_grad_norm_(style_net.parameters(), max_norm=1.0)
             
             optimizer.step()
             scheduler.step()
-            
+            del c_loss, s_loss, tv_loss
             # Update running losses
             running_loss += total_loss.item()
             running_content_loss += c_loss.item()
@@ -261,21 +261,22 @@ def train_style_transfer(
                 running_content_loss = 0.0
                 running_style_loss = 0.0
                 running_tv_loss = 0.0
-                torch.cuda.empty_cache()
-                gc.collect()
+                clear_memory()
 
-            # changing of weights every 10000
-            if total_iterations % 10000 == 0:
-                content_weight = content_weight / 2
-                style_weight = style_weight * 2
-              
+            # # changing of weights every 10000
+            if total_iterations % 1000 == 0:
+                style_weight = style_weight * 1.3      
+            if total_iterations % 10000 == 0: 
+                content_weight = content_weight / 1.05
+       
             # Generate sample images
             if total_iterations % 1000 == 0:
                 style_net.eval()
                 with torch.no_grad():
-                    # Load and preprocess test image
-                    test_image = Image.open(training_monitor_content_image).convert("RGB")
-                    test_tensor = transform(test_image).unsqueeze(0).to(device)
+                    random_idx = torch.randint(1, len(dataset), (1,)) # For a single random index
+                    # Load and preprocess test image  
+                    random_test_image = dataset[random_idx]
+                    test_tensor = random_test_image.unsqueeze(0).to(device)
                     
                     # Generate stylized image
                     stylized_tensor = style_net(test_tensor)
@@ -297,7 +298,7 @@ def train_style_transfer(
                 style_net.train()
 
             # Save checkpoints
-            if total_iterations % 5000 == 0 and total_iterations > 0:
+            if total_iterations % 2000 == 0 and total_iterations > 0:
                 checkpoint_dict = {
                     'model_state_dict': style_net.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
@@ -322,7 +323,6 @@ def train_style_transfer(
             break
     
     # Save final model
-    
     final_model_path = f"{output_dir}/style_transfer_final.pth"
     torch.save(style_net.state_dict(), final_model_path)
     torch.save(style_net, f"{output_dir}/style_transfer.bin")
@@ -331,10 +331,3 @@ def train_style_transfer(
     # Save final model
     torch.save(style_net.state_dict(), f"{output_dir}/style_transfer_final.pth")
     print("Training completed!")
-
-    def clear_memory():
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-        gc.collect()
-

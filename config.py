@@ -1,7 +1,7 @@
 
 training_config = {
     "TOTAL_STEPS" : 40000,
-    "BATCH_SIZE"     : 8  ,
+    "BATCH_SIZE"     : 20  ,
     "LEARNING_RATE"  : 1e-3,
     "NUM_EPOCHS"     : 2,
     "TRAIN_IMAGE_SHAPE" : (256, 256),
@@ -9,9 +9,9 @@ training_config = {
 
 # style and content weights change every 10k iterations
 loss_weights_config = {
-    "CONTENT_WEIGHT": 5.0,      # Reduced but still meaningful
-    "STYLE_WEIGHT": 500,        # 100x ratio (instead of 1000x)
-    "TV_WEIGHT": 5.0,           # Keep reasonable smoothing
+    "CONTENT_WEIGHT" : 1.0,
+    "STYLE_WEIGHT"  : 100,
+    "TV_WEIGHT"     : 2,
 }
 
 vgg_loss_layers = {

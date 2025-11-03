@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 VGG19_LAYERS = (
@@ -32,7 +34,6 @@ class VGG19(nn.Module):
         self.slice3 = nn.Sequential()
         self.slice4 = nn.Sequential()
         self.slice5 = nn.Sequential()
-
         # 1_2 , 2_2 , 3_3 , 4_3
         # relu1_2 
         for x in range(4):
@@ -62,5 +63,5 @@ class VGG19(nn.Module):
         h_relu4_2 = self.slice4(h_relu3_3)
         h_relu4_3 = self.slice5(h_relu4_2)  # Content layer
         
-        return [h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_2, h_relu4_3] 
+        return [h_relu2_2, h_relu3_3, h_relu4_2, h_relu4_3] 
         
