@@ -9,8 +9,8 @@ training_config = {
 
 # style and content weights change every 10k iterations
 loss_weights_config = {
-    "CONTENT_WEIGHT" : 50.0,
-    "STYLE_WEIGHT"  : 1000,
+    "CONTENT_WEIGHT" : 1000.0,
+    "STYLE_WEIGHT"  : 100,
     "TV_WEIGHT"     : 2,
 }
 
