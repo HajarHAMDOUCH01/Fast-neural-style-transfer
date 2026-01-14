@@ -1,6 +1,6 @@
 # Fast Neural Style Transfer
 
-[Try model (streamlit inference](https://real-time-nst-app.streamlit.app/)
+[Try model (streamlit inference)](https://real-time-nst-app.streamlit.app/)
 
 A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016). Except it's by using InstanceNormalization instead of BatchNormalization.
 
