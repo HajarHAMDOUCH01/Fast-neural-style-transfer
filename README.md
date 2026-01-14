@@ -1,5 +1,7 @@
 # Fast Neural Style Transfer
 
+[Try model (streamlit inference](https://real-time-nst-app.streamlit.app/)
+
 A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016). Except it's by using InstanceNormalization instead of BatchNormalization.
 
 This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time (3 seconds on T4 in google colab and around 1 or 2 seconds in onnx runtime-web) style transfer.
@@ -19,11 +21,6 @@ This implementation trains a feed-forward convolutional neural network to transf
 **Stylized Image**
 
 ![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/c75f0f596035fb28c302b4152a537e6973f6a81f/sample_image_picasso.jpg)
-
-
-## Try in this app : 
-
-[Web App for demonstartion Using onnx runtime-web and NextJS](https://app-neural-style-transfer.vercel.app/)
 
 
 The method combines two key innovations:
