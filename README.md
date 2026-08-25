@@ -6,6 +6,58 @@ A PyTorch implementation of the fast neural style transfer method from the paper
 
 This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time style transfer (~3 seconds on a T4 GPU in Google Colab).
 
+## Quick Inference (Hugging Face)
+
+Pretrained weights (Picasso style) are hosted on [Hugging Face](https://huggingface.co/hajar001/fast-neural-style-transfer). Runs in under a second on GPU, ~1 second on CPU.
+
+```python
+import torch
+from huggingface_hub import hf_hub_download
+import sys, os
+import torchvision.transforms as transforms
+from PIL import Image
+
+# Download model file
+model_file = hf_hub_download(
+    repo_id="hajar001/fast-neural-style-transfer",
+    filename="style_transfer_model.py"
+)
+sys.path.insert(0, os.path.dirname(model_file))
+from style_transfer_model import StyleTransferNet
+
+transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.ToTensor(),
+])
+
+# Load model
+model = StyleTransferNet.from_pretrained("hajar001/fast-neural-style-transfer")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
+model.eval()
+
+with torch.no_grad():
+    # Load and preprocess content image
+    test_image = Image.open("content_image.jpg").convert("RGB")
+    test_tensor = transform(test_image).unsqueeze(0).to(device)
+
+    # Generate stylized image
+    stylized_tensor = model(test_tensor)
+
+    # Denormalize and convert to PIL
+    denorm = transforms.Normalize(
+        mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
+        std=[1/0.229, 1/0.224, 1/0.225]
+    )
+    stylized_tensor = denorm(stylized_tensor[0])
+    stylized_tensor = torch.clamp(stylized_tensor, 0, 1)
+
+    stylized_img = transforms.ToPILImage()(stylized_tensor.cpu())
+    stylized_img.save("stylized_image.jpg")
+```
+
+Or skip the code entirely and try it in the browser: [Streamlit demo](https://real-time-nst-app.streamlit.app/)
+
 ## Overview
 
 **Original Image**
