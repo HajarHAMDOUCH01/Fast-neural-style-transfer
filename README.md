@@ -1,27 +1,24 @@
 # Fast Neural Style Transfer
 
-[Try model (streamlit inference)](https://real-time-nst-app.streamlit.app/)
+[Try model (Streamlit inference)](https://real-time-nst-app.streamlit.app/)
 
-A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016). Except it's by using InstanceNormalization instead of BatchNormalization.
+A PyTorch implementation of the fast neural style transfer method from the paper ["Perceptual Losses for Real-Time Style Transfer and Super-Resolution"](https://arxiv.org/abs/1603.08155) by Johnson et al. (2016), using Instance Normalization instead of Batch Normalization.
 
-This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time (3 seconds on T4 in google colab and around 1 or 2 seconds in onnx runtime-web) style transfer.
-
+This implementation trains a feed-forward convolutional neural network to transform images in the style of a given artwork, achieving real-time style transfer (~3 seconds on a T4 GPU in Google Colab).
 
 ## Overview
 
 **Original Image**
 
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/2d84ee10d6b86239ce1e406fb1c43c425cb75e1a/dancing.jpg)
+[![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/raw/2d84ee10d6b86239ce1e406fb1c43c425cb75e1a/dancing.jpg)](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/2d84ee10d6b86239ce1e406fb1c43c425cb75e1a/dancing.jpg)
 
+**First style: Picasso Art**
 
-**First style : Picasso Art**
-
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/084646b569054c614720d8533f28a1e73ac1c2e9/picasso.jpg)
+[![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/raw/084646b569054c614720d8533f28a1e73ac1c2e9/picasso.jpg)](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/084646b569054c614720d8533f28a1e73ac1c2e9/picasso.jpg)
 
 **Stylized Image**
 
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/c75f0f596035fb28c302b4152a537e6973f6a81f/sample_image_picasso.jpg)
-
+[![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/raw/c75f0f596035fb28c302b4152a537e6973f6a81f/sample_image_picasso.jpg)](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/c75f0f596035fb28c302b4152a537e6973f6a81f/sample_image_picasso.jpg)
 
 The method combines two key innovations:
 - **Feed-forward transformation network**: A deep CNN that learns to transform images in a single forward pass
@@ -32,7 +29,7 @@ The method combines two key innovations:
 ### Transformation Network
 - **Input**: RGB images of shape 3×256×256
 - **Output**: Stylized RGB images of same dimensions
-- **Architecture**: 
+- **Architecture**:
   - 2 strided convolutions for downsampling (stride=2)
   - 5 residual blocks for feature transformation
   - 2 fractionally-strided convolutions for upsampling (stride=1/2)
@@ -51,8 +48,7 @@ The training objective combines three loss terms:
 ### 1. Feature Reconstruction Loss
 Encourages content preservation by matching high-level features:
 
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/732c3d0faf1f46c5b2630760d1027df3f0d243e1/feature_reconstruction_loss.png)
-
+[![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/raw/732c3d0faf1f46c5b2630760d1027df3f0d243e1/feature_reconstruction_loss.png)](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/732c3d0faf1f46c5b2630760d1027df3f0d243e1/feature_reconstruction_loss.png)
 
 - Computed at VGG19 layer `relu4_2`
 - φ_j(x) represents activations at layer j
@@ -60,26 +56,26 @@ Encourages content preservation by matching high-level features:
 ### 2. Style Reconstruction Loss
 Captures style characteristics using Gram matrix correlations:
 
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/073233a7b891a6d187c13c128c789560f948dc8e/style_loss.png)
+[![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/raw/073233a7b891a6d187c13c128c789560f948dc8e/style_loss.png)](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/073233a7b891a6d187c13c128c789560f948dc8e/style_loss.png)
 
 - Computed at VGG layers: `relu1_1`, `relu2_1`, `relu3_1`, `relu4_1`, `relu5_1`
-- but you can choose higher layers to capture better representation of style or do weighting of style layers.
+- You can choose higher layers to capture a different representation of style, or weight the style layers individually.
 
 ### 3. Total Variation Regularization
 Promotes spatial smoothness in output:
 
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/8a4f6522246861b5f622497e1b8880542b0fc5d2/tv_loss.png)
+[![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/raw/8a4f6522246861b5f622497e1b8880542b0fc5d2/tv_loss.png)](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/8a4f6522246861b5f622497e1b8880542b0fc5d2/tv_loss.png)
 
 ### Combined Loss
 
-![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/940f0c59c4473ad65008bb25af1adb7399918682/total_loss.png)
+[![image alt](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/raw/940f0c59c4473ad65008bb25af1adb7399918682/total_loss.png)](https://github.com/HajarHAMDOUCH01/real-time-neural-style-transfer/blob/940f0c59c4473ad65008bb25af1adb7399918682/total_loss.png)
 
-## Dataset and Training 
+## Dataset and Training
 
 ### Training Data
 - **COCO 2017 Dataset**: ~118k training images
 - Images resized to 256×256 pixels
-- Training for ~2 epochs (sufficient to avoid overfitting) in 40k steps
+- Training for ~2 epochs (sufficient to avoid overfitting), 40k steps total
 
 ### Training Parameters
 - **Batch size**: 4
@@ -88,22 +84,22 @@ Promotes spatial smoothness in output:
 - **Loss weights**:
   - λ_c = 1.0 (content weight)
   - λ_s = 100.0 (style weight for starry night)
-  - λ_TV = 1×10⁻1 to 1×10⁻2 (chosen via cross-validation per style)
+  - λ_TV = 1×10⁻¹ to 1×10⁻² (chosen via cross-validation per style)
 
 ### Training Process
 1. Load pretrained VGG-19 and freeze weights
 2. Initialize transformation network randomly
 3. For each batch:
    - Forward pass through transformation network
-   - Compute perceptual losses using VGG-19 features (from relu4_2 as content layer and relu1_1, relu2__1, relu3_1, relu4_1, relu5_1 as style layers with the same weight per layer)
+   - Compute perceptual losses using VGG-19 features (`relu4_2` as content layer; `relu1_1`, `relu2_1`, `relu3_1`, `relu4_1`, `relu5_1` as style layers, equally weighted)
    - Backpropagate and update transformation network only
 4. Save model after convergence
 
 ## Key Features
 
 ### Real-time Performance
-- **Speed**: Processes 256×256 images at 3 seconds on google colab T4 GPU
-- **Efficiency**: 1000× faster than optimization-based methods
+- **Speed**: Processes 256×256 images in ~3 seconds on a Google Colab T4 GPU
+- **Efficiency**: ~1000× faster than optimization-based methods
 - **Quality**: Comparable results to iterative optimization
 
 ### Generalization
@@ -113,14 +109,15 @@ Promotes spatial smoothness in output:
 
 ## Usage
 
-**Instal requirements**
-```python
+**Install requirements**
+```
 pip install -r requirements.txt
 ```
 
-**Training** 
-Default parameters are in config.py
-```python
+**Training**
+
+Default parameters are in `config.py`
+```
 python begin_training.py \
     --style_image "styles/starry_night.jpg" \
     --training_monitor_content_image "content/mountains.jpg" \
@@ -134,8 +131,9 @@ python begin_training.py \
     --total_steps 40000 \
     --lr 1e-3
 ```
+
 **Inference**
-```python
+```
 python begin_inference.py \
     --model_path "checkpoints/style_transfer_model.pth" \
     --content_image "content/mountains.jpg" \
@@ -147,7 +145,7 @@ python begin_inference.py \
 ### Architectural Choices
 - **Residual connections**: Help preserve image structure during transformation
 - **Downsampling strategy**: Reduces computational cost and increases receptive field
-- **Instance normalization**: Gives better results than instance normalization
+- **Instance normalization**: Gives better results than batch normalization for this task
 
 ## Requirements
 
@@ -158,27 +156,27 @@ python begin_inference.py \
 - CUDA-capable GPU (recommended)
 
 ## Contributing
-We welcome contributions to this implementation! Here's how you can help:
-Ways to Contribute
 
-*Bug fixes*: Report and fix issues in the training or inference pipeline
-*Performance improvements*: Optimize code for better speed or memory usage
-*Documentation*: Improve README, add code comments, or create tutorials
-*Testing*: Add unit tests, integration tests, or performance benchmarks
-*Features*: Implement additional loss functions or network architectures
+We welcome contributions to this implementation! Here's how you can help:
+
+**Ways to Contribute**
+- *Bug fixes*: Report and fix issues in the training or inference pipeline
+- *Performance improvements*: Optimize code for better speed or memory usage
+- *Documentation*: Improve README, add code comments, or create tutorials
+- *Testing*: Add unit tests, integration tests, or performance benchmarks
+- *Features*: Implement additional loss functions or network architectures
 
 **Contribution Guidelines**
+1. Fork the repository and create a feature branch
+2. Follow coding standards: use consistent formatting and meaningful variable names
+3. Test your changes: ensure your code works with the existing pipeline
+4. Document your work: add docstrings and update the README if needed
+5. Submit a pull request with a clear description of changes
 
-Fork the repository and create a feature branch
-Follow coding standards: Use consistent formatting and meaningful variable names
-Test your changes: Ensure your code works with the existing pipeline
-Document your work: Add docstrings and update README if needed
-Submit a pull request with clear description of changes
-
-Development Setup
-```python
-bashgit clone https://github.com/HajarHAMDOUCH01/fast-neural-style-transfer
-cd fast-neural-style-transfer
+**Development Setup**
+```
+git clone https://github.com/HajarHAMDOUCH01/Fast-neural-style-transfer
+cd Fast-neural-style-transfer
 pip install -r requirements.txt
 ```
 
